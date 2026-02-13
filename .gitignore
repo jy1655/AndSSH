@@ -3,6 +3,8 @@
 
 # Android/Gradle
 .gradle/
+.gradle-local/
+.local/
 build/
 **/build/
 local.properties

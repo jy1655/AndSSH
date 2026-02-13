@@ -174,6 +174,7 @@ private class SshjSession(
 
     override suspend fun windowChange(cols: Int, rows: Int) = withContext(Dispatchers.IO) {
         shell?.changeWindowDimensions(cols, rows, 0, 0)
+        Unit
     }
 
     override suspend fun close() = withContext(Dispatchers.IO) {
@@ -181,5 +182,6 @@ private class SshjSession(
         runCatching { session.close() }
         runCatching { ssh.disconnect() }
         runCatching { ssh.close() }
+        Unit
     }
 }
