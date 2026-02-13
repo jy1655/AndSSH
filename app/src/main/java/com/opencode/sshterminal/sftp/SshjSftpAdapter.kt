@@ -19,6 +19,14 @@ class SshjSftpAdapter : SftpChannelAdapter {
         }
     }
 
+    override suspend fun exists(request: ConnectRequest, remotePath: String): Boolean = withContext(Dispatchers.IO) {
+        withClient(request) { ssh ->
+            ssh.newSFTPClient().use { sftp ->
+                runCatching { sftp.stat(remotePath) }.isSuccess
+            }
+        }
+    }
+
     override suspend fun upload(request: ConnectRequest, localPath: String, remotePath: String) = withContext(Dispatchers.IO) {
         withClient(request) { ssh ->
             ssh.newSFTPClient().use { sftp ->

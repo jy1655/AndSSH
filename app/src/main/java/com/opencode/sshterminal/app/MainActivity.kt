@@ -2,6 +2,7 @@ package com.opencode.sshterminal.app
 
 import android.content.Intent
 import android.os.Bundle
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -84,6 +86,8 @@ private fun TerminalScreen(
     var localDownloadPath by remember { mutableStateOf("") }
     var sftpEntries by remember { mutableStateOf<List<RemoteEntry>>(emptyList()) }
     var sftpStatus by remember { mutableStateOf("") }
+    var sftpBusy by remember { mutableStateOf(false) }
+    var pendingOverwrite by remember { mutableStateOf<OverwriteAction?>(null) }
 
     Column(
         modifier = Modifier
@@ -197,11 +201,14 @@ private fun TerminalScreen(
                 )
                 scope.launch {
                     runCatching {
+                        sftpBusy = true
                         sftpStatus = "Listing $remotePath ..."
                         sftpEntries = sftpAdapter.list(request, remotePath.ifBlank { "." })
                         sftpStatus = "Listed ${sftpEntries.size} entries"
                     }.onFailure {
-                        sftpStatus = "List failed: ${it.message}"
+                        sftpStatus = "List failed: ${toUserFriendlySftpError(it)}"
+                    }.also {
+                        sftpBusy = false
                     }
                 }
             }) { Text("List") }
@@ -230,12 +237,30 @@ private fun TerminalScreen(
                 privateKeyPath = privateKeyPath
             )
             scope.launch {
+                if (localUploadPath.isBlank() || remoteUploadPath.isBlank()) {
+                    sftpStatus = "Upload failed: local/remote path를 모두 입력하세요."
+                    return@launch
+                }
+                val local = File(localUploadPath)
+                if (!local.exists()) {
+                    sftpStatus = "Upload failed: 로컬 파일이 존재하지 않습니다."
+                    return@launch
+                }
                 runCatching {
-                    sftpStatus = "Uploading ..."
-                    sftpAdapter.upload(request, localUploadPath, remoteUploadPath)
-                    sftpStatus = "Upload completed"
+                    sftpBusy = true
+                    val remoteExists = sftpAdapter.exists(request, remoteUploadPath)
+                    if (remoteExists) {
+                        pendingOverwrite = OverwriteAction.Upload(request, localUploadPath, remoteUploadPath)
+                        sftpStatus = "Remote file exists. Confirm overwrite."
+                    } else {
+                        sftpStatus = "Uploading ..."
+                        sftpAdapter.upload(request, localUploadPath, remoteUploadPath)
+                        sftpStatus = "Upload completed"
+                    }
                 }.onFailure {
-                    sftpStatus = "Upload failed: ${it.message}"
+                    sftpStatus = "Upload failed: ${toUserFriendlySftpError(it)}"
+                }.also {
+                    sftpBusy = false
                 }
             }
         }) { Text("Upload") }
@@ -248,6 +273,9 @@ private fun TerminalScreen(
 
         if (sftpStatus.isNotBlank()) {
             Text("SFTP: $sftpStatus")
+        }
+        if (sftpBusy) {
+            CircularProgressIndicator()
         }
 
         LazyColumn(
@@ -281,12 +309,21 @@ private fun TerminalScreen(
                             val base = localDownloadPath.ifBlank { "/sdcard/Download" }
                             val target = "$base/${entry.name}"
                             scope.launch {
+                                val localTarget = File(target)
+                                if (localTarget.exists()) {
+                                    pendingOverwrite = OverwriteAction.Download(request, entry.path, target)
+                                    sftpStatus = "Local file exists. Confirm overwrite."
+                                    return@launch
+                                }
                                 runCatching {
+                                    sftpBusy = true
                                     sftpStatus = "Downloading ${entry.name} ..."
                                     sftpAdapter.download(request, entry.path, target)
                                     sftpStatus = "Downloaded to $target"
                                 }.onFailure {
-                                    sftpStatus = "Download failed: ${it.message}"
+                                    sftpStatus = "Download failed: ${toUserFriendlySftpError(it)}"
+                                }.also {
+                                    sftpBusy = false
                                 }
                             }
                         }) {
@@ -328,6 +365,55 @@ private fun TerminalScreen(
             }
         )
     }
+
+    val overwrite = pendingOverwrite
+    if (overwrite != null) {
+        AlertDialog(
+            onDismissRequest = { pendingOverwrite = null },
+            title = { Text("Overwrite confirmation") },
+            text = {
+                Text(
+                    when (overwrite) {
+                        is OverwriteAction.Upload -> "Remote file exists:\n${overwrite.remotePath}\n덮어쓸까요?"
+                        is OverwriteAction.Download -> "Local file exists:\n${overwrite.localPath}\n덮어쓸까요?"
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        runCatching {
+                            sftpBusy = true
+                            when (overwrite) {
+                                is OverwriteAction.Upload -> {
+                                    sftpStatus = "Uploading ..."
+                                    sftpAdapter.upload(overwrite.request, overwrite.localPath, overwrite.remotePath)
+                                    sftpStatus = "Upload completed"
+                                }
+                                is OverwriteAction.Download -> {
+                                    sftpStatus = "Downloading ..."
+                                    sftpAdapter.download(overwrite.request, overwrite.remotePath, overwrite.localPath)
+                                    sftpStatus = "Download completed"
+                                }
+                            }
+                        }.onFailure {
+                            sftpStatus = "Transfer failed: ${toUserFriendlySftpError(it)}"
+                        }.also {
+                            sftpBusy = false
+                            pendingOverwrite = null
+                        }
+                    }
+                }) {
+                    Text("Overwrite")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingOverwrite = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 private fun currentConnectRequest(
@@ -362,6 +448,30 @@ private fun buildInputPayload(text: String, ctrlArmed: Boolean, altArmed: Boolea
 private fun ctrlByte(ch: Char): Byte {
     val upper = ch.uppercaseChar().code
     return if (upper in 64..95) (upper - 64).toByte() else ch.code.toByte()
+}
+
+private sealed interface OverwriteAction {
+    data class Upload(
+        val request: ConnectRequest,
+        val localPath: String,
+        val remotePath: String
+    ) : OverwriteAction
+
+    data class Download(
+        val request: ConnectRequest,
+        val remotePath: String,
+        val localPath: String
+    ) : OverwriteAction
+}
+
+private fun toUserFriendlySftpError(t: Throwable): String {
+    val message = t.message ?: return "알 수 없는 오류"
+    return when {
+        "Permission denied" in message -> "권한이 없습니다. 원격 경로/파일 권한을 확인하세요."
+        "No such file" in message -> "경로가 존재하지 않습니다. remote/local 경로를 확인하세요."
+        "Auth fail" in message || "Authentication" in message -> "인증 실패. 사용자명/비밀번호 또는 키 설정을 확인하세요."
+        else -> message
+    }
 }
 
 @Composable
