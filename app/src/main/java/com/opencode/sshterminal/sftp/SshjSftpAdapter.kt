@@ -22,7 +22,16 @@ class SshjSftpAdapter : SftpChannelAdapter {
     override suspend fun exists(request: ConnectRequest, remotePath: String): Boolean = withContext(Dispatchers.IO) {
         withClient(request) { ssh ->
             ssh.newSFTPClient().use { sftp ->
-                runCatching { sftp.stat(remotePath) }.isSuccess
+                try {
+                    sftp.stat(remotePath)
+                    true
+                } catch (t: Throwable) {
+                    if (isSftpNoSuchFileError(t)) {
+                        false
+                    } else {
+                        throw t
+                    }
+                }
             }
         }
     }
@@ -106,4 +115,20 @@ private class RejectingKnownHostsVerifier(knownHosts: File) : OpenSSHKnownHosts(
 
 private class UpdatingKnownHostsVerifier(knownHosts: File) : OpenSSHKnownHosts(knownHosts) {
     override fun hostKeyChangedAction(hostname: String?, key: java.security.PublicKey?): Boolean = true
+}
+
+internal fun isSftpNoSuchFileError(t: Throwable): Boolean {
+    var cur: Throwable? = t
+    while (cur != null) {
+        val message = cur.message.orEmpty()
+        if (
+            "SSH_FX_NO_SUCH_FILE" in message ||
+            "NO_SUCH_FILE" in message ||
+            "No such file" in message
+        ) {
+            return true
+        }
+        cur = cur.cause
+    }
+    return false
 }
