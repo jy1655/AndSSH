@@ -29,6 +29,8 @@ captures/
 # Generated files
 app/release/
 app/debug/
+*.apk
+*.aab
 
 # NDK
 obj/

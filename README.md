@@ -14,6 +14,8 @@ Android native SSH terminal app scaffold focused on TTY-based remote CLI workflo
 - `sshj` SFTP channel adapter (`list`, `upload`, `download`)
 - Main 화면에 SFTP 파일 브라우저 섹션(`List`, 디렉터리 `Open`, 파일 `Download`, 경로 기반 `Upload`)
 - SFTP UX 개선: 진행 인디케이터, 업/다운로드 덮어쓰기 확인 다이얼로그, 권한/경로 오류 안내 문구
+- Android 14+/targetSdk 35 foreground service 권한 정리 (`FOREGROUND_SERVICE_DATA_SYNC`)
+- 모바일 화면 입력 UX 수정: 스크롤 + 가시성 있는 입력 필드(`OutlinedTextField`)
 - GitHub Actions CI: `assembleDebug` + `testDebugUnitTest`
 - Terminal abstraction (`TerminalEngine`) with simple in-memory implementation
 - Placeholder key repository interface for Keystore+AEAD implementation
@@ -22,11 +24,11 @@ Android native SSH terminal app scaffold focused on TTY-based remote CLI workflo
 
 This is still MVP scaffolding, but SSH connection now uses `sshj`.
 
-## Build & test (CLI)
+## Build & test (CLI, WSL 기준)
 
 This repository now includes Gradle Wrapper (`gradlew`).
 
-1. Prepare environment variables (example paths used in this project):
+1. Prepare environment variables:
 
 ```bash
 export JAVA_HOME=/home/h1655/Dev/android-ssh/.local/jdk/jdk-17.0.14+7
@@ -41,15 +43,45 @@ export PATH="$JAVA_HOME/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 ./gradlew assembleDebug
 ```
 
-3. Run unit test task:
+3. Run unit tests:
 
 ```bash
-./gradlew testDebugUnitTest
+./gradlew --no-daemon testDebugUnitTest
 ```
 
 Output APK path:
 
 - `app/build/outputs/apk/debug/app-debug.apk`
+
+## Run on Android device
+
+1. (WSL2) Windows PowerShell에서 폰을 WSL로 attach:
+
+```powershell
+usbipd bind --busid <BUSID>
+usbipd attach --wsl --busid <BUSID>
+```
+
+2. WSL에서 ADB 연결 확인 (`device` 상태여야 함):
+
+```bash
+adb devices -l
+```
+
+3. 디버그 앱 설치:
+
+```bash
+./gradlew --no-daemon installDebug
+```
+
+4. 앱 실행:
+
+```bash
+adb shell am start -n com.opencode.sshterminal/.app.MainActivity
+```
+
+If `unauthorized` appears, approve the RSA debugging prompt on the phone.
+If `no permissions` appears, add a udev rule for your vendor ID and reload rules.
 
 ## Next implementation order
 
@@ -63,3 +95,5 @@ Output APK path:
 - `app/src/main/java/com/opencode/sshterminal/ssh/SshClient.kt`
 - `app/src/main/java/com/opencode/sshterminal/terminal/TerminalEngine.kt`
 - `app/src/main/java/com/opencode/sshterminal/service/SshForegroundService.kt`
+- `app/src/main/java/com/opencode/sshterminal/sftp/SshjSftpAdapter.kt`
+- `app/src/test/java/com/opencode/sshterminal/sftp/SshjSftpAdapterTest.kt`

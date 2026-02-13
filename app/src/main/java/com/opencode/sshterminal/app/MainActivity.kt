@@ -11,13 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.layout.imePadding
 import com.opencode.sshterminal.service.SshForegroundService
 import com.opencode.sshterminal.session.ConnectRequest
 import com.opencode.sshterminal.session.SessionStateMachine
@@ -92,7 +93,9 @@ private fun TerminalScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+            .imePadding()
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text("State: ${snapshot.state}")
@@ -278,11 +281,8 @@ private fun TerminalScreen(
             CircularProgressIndicator()
         }
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            items(sftpEntries, key = { it.path }) { entry ->
+        Column(modifier = Modifier.fillMaxWidth()) {
+            sftpEntries.forEach { entry ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -481,15 +481,12 @@ private fun LabeledField(
     onValueChange: (String) -> Unit,
     isPassword: Boolean = false
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label)
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-        )
-    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true
+    )
 }
