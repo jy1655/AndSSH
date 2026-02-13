@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Android/Gradle
+.gradle/
+build/
+**/build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IntelliJ/Android Studio
+.idea/
+*.iml
+
+# Kotlin/Java
+*.class
+
+# Logs
+*.log
+
+# Keystore / signing
+*.jks
+*.keystore
+
+# Generated files
+app/release/
+app/debug/
+
+# NDK
+obj/
+
+# Misc
+Thumbs.db
