@@ -104,6 +104,7 @@ private fun DrawScope.drawTerminalRow(
 ) {
     val termRow = screen.allocateFullLineIfNecessary(screen.externalToInternalRow(row))
     val y = row * charSize.height
+    if (y >= size.height) return
 
     var col = 0
     while (col < cols) {
@@ -120,6 +121,7 @@ private fun DrawScope.drawTerminalRow(
         }
 
         val x = col * charSize.width
+        if (x >= size.width) break
         val startCol = termRow.findStartOfColumn(col)
         val codePoint = if (startCol >= 0 && startCol < termRow.spaceUsed) {
             Character.codePointAt(termRow.mText, startCol)
@@ -138,10 +140,11 @@ private fun DrawScope.drawTerminalRow(
 
         if (ch.isNotBlank()) {
             val bold = (effect and com.termux.terminal.TextStyle.CHARACTER_ATTRIBUTE_BOLD) != 0
+            val safeX = x.coerceAtMost((size.width - 1f).coerceAtLeast(0f))
             drawText(
                 textMeasurer,
                 ch,
-                topLeft = Offset(x, y),
+                topLeft = Offset(safeX, y),
                 style = TextStyle(
                     color = fg,
                     fontFamily = FontFamily.Monospace,

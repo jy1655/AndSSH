@@ -114,6 +114,8 @@ private class RejectingKnownHostsVerifier(knownHosts: File) : OpenSSHKnownHosts(
 }
 
 private class UpdatingKnownHostsVerifier(knownHosts: File) : OpenSSHKnownHosts(knownHosts) {
+    override fun hostKeyUnverifiableAction(hostname: String?, key: java.security.PublicKey?): Boolean = true
+
     override fun hostKeyChangedAction(hostname: String?, key: java.security.PublicKey?): Boolean = true
 }
 

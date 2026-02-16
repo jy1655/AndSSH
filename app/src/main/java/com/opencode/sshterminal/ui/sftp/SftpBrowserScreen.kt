@@ -3,9 +3,11 @@ package com.opencode.sshterminal.ui.sftp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -67,6 +69,45 @@ fun SftpBrowserScreen(
                 Button(onClick = { viewModel.list() }) { Text("List") }
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = state.downloadBasePath,
+                onValueChange = { viewModel.setDownloadBasePath(it) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Download Base Path") }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = state.uploadLocalPath,
+                    onValueChange = { viewModel.setUploadLocalPath(it) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    label = { Text("Local Upload Path") }
+                )
+                OutlinedTextField(
+                    value = state.uploadRemotePath,
+                    onValueChange = { viewModel.setUploadRemotePath(it) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    label = { Text("Remote Upload Path") }
+                )
+            }
+
+            Button(
+                onClick = { viewModel.upload(state.uploadLocalPath, state.uploadRemotePath) },
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                Text("Upload")
+            }
+
             if (state.status.isNotBlank()) {
                 Text(
                     text = state.status,
@@ -96,7 +137,8 @@ fun SftpBrowserScreen(
                             Button(onClick = { viewModel.navigateTo(entry.path) }) { Text("Open") }
                         } else {
                             Button(onClick = {
-                                viewModel.download(entry.path, "/sdcard/Download/${entry.name}")
+                                val basePath = state.downloadBasePath.trimEnd('/')
+                                viewModel.download(entry.path, "$basePath/${entry.name}")
                             }) { Text("Download") }
                         }
                     }

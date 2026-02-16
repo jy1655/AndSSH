@@ -67,17 +67,13 @@ class SessionManager @Inject constructor(
                 _snapshot.value = _snapshot.value.copy(state = SessionState.DISCONNECTED)
             }.onFailure { err ->
                 Log.e(TAG, "Connection failed", err)
-                if (err is HostKeyChangedException) {
+                val hostKeyAlert = toHostKeyAlert(err, request)
+                if (hostKeyAlert != null) {
                     pendingHostKeyRequest = request
                     _snapshot.value = _snapshot.value.copy(
                         state = SessionState.FAILED,
-                        error = err.message,
-                        hostKeyAlert = HostKeyAlert(
-                            host = err.host,
-                            port = err.port,
-                            fingerprint = err.fingerprint,
-                            message = err.message
-                        )
+                        error = hostKeyAlert.message,
+                        hostKeyAlert = hostKeyAlert
                     )
                 } else {
                     _snapshot.value = _snapshot.value.copy(
@@ -131,7 +127,33 @@ class SessionManager @Inject constructor(
     val isConnected: Boolean
         get() = _snapshot.value.state == SessionState.CONNECTED
 
+    private fun toHostKeyAlert(err: Throwable, request: ConnectRequest): HostKeyAlert? {
+        if (err is HostKeyChangedException) {
+            return HostKeyAlert(
+                host = err.host,
+                port = err.port,
+                fingerprint = err.fingerprint,
+                message = err.message
+            )
+        }
+
+        val message = err.message ?: return null
+        val isHostKeyNotVerifiable =
+            "HOST_KEY_NOT_VERIFIABLE" in message ||
+                ("Could not verify" in message && "host key" in message)
+        if (!isHostKeyNotVerifiable) return null
+
+        val fingerprint = FINGERPRINT_REGEX.find(message)?.groupValues?.get(1) ?: "unknown"
+        return HostKeyAlert(
+            host = request.host,
+            port = request.port,
+            fingerprint = fingerprint,
+            message = message
+        )
+    }
+
     companion object {
         private const val TAG = "SessionManager"
+        private val FINGERPRINT_REGEX = Regex("fingerprint `([^`]+)`")
     }
 }

@@ -142,8 +142,8 @@ private fun AddConnectionDialog(
     var host by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("22") }
     var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var privateKeyPath by remember { mutableStateOf("") }
-    var knownHostsPath by remember { mutableStateOf("/data/data/com.opencode.sshterminal/files/known_hosts") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -154,8 +154,8 @@ private fun AddConnectionDialog(
                 OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text("Host") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("Port") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password (Optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = privateKeyPath, onValueChange = { privateKeyPath = it }, label = { Text("Private Key Path") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = knownHostsPath, onValueChange = { knownHostsPath = it }, label = { Text("known_hosts Path") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
@@ -168,8 +168,8 @@ private fun AddConnectionDialog(
                                 host = host,
                                 port = port.toIntOrNull() ?: 22,
                                 username = username,
+                                password = password.ifBlank { null },
                                 privateKeyPath = privateKeyPath.ifBlank { null },
-                                knownHostsPath = knownHostsPath,
                                 lastUsedEpochMillis = System.currentTimeMillis()
                             )
                         )

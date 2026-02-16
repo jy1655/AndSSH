@@ -3,6 +3,8 @@ package com.opencode.sshterminal.ui.terminal
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
+import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionRepository
 import com.opencode.sshterminal.session.ConnectRequest
 import com.opencode.sshterminal.session.SessionManager
@@ -10,6 +12,8 @@ import com.opencode.sshterminal.session.SessionSnapshot
 import com.opencode.sshterminal.session.SessionState
 import com.opencode.sshterminal.terminal.TermuxTerminalBridge
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -20,10 +24,11 @@ import javax.inject.Inject
 class TerminalViewModel @Inject constructor(
     private val sessionManager: SessionManager,
     private val connectionRepository: ConnectionRepository,
+    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val connectionId: String = savedStateHandle["connectionId"] ?: ""
+    val connectionId: String = savedStateHandle["connectionId"] ?: ""
 
     val bridge = TermuxTerminalBridge(
         cols = 120,
@@ -41,21 +46,26 @@ class TerminalViewModel @Inject constructor(
             }
         }
 
-        if (connectionId.isNotEmpty() && !sessionManager.isConnected) {
+        if (connectionId.isNotEmpty()) {
             viewModelScope.launch {
                 val profile = connectionRepository.get(connectionId) ?: return@launch
-                connectionRepository.touchLastUsed(profile.id)
-                sessionManager.connect(
-                    ConnectRequest(
-                        host = profile.host,
-                        port = profile.port,
-                        username = profile.username,
-                        knownHostsPath = profile.knownHostsPath,
-                        privateKeyPath = profile.privateKeyPath,
-                        cols = 120,
-                        rows = 40
+                val shouldConnect = !sessionManager.isConnected || !isSameTarget(profile)
+                if (shouldConnect) {
+                    bridge.reset()
+                    connectionRepository.touchLastUsed(profile.id)
+                    sessionManager.connect(
+                        ConnectRequest(
+                            host = profile.host,
+                            port = profile.port,
+                            username = profile.username,
+                            knownHostsPath = File(context.filesDir, "known_hosts").absolutePath,
+                            password = profile.password,
+                            privateKeyPath = profile.privateKeyPath,
+                            cols = 120,
+                            rows = 40
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -82,4 +92,11 @@ class TerminalViewModel @Inject constructor(
     fun updateKnownHostsAndReconnect() = sessionManager.updateKnownHostsAndReconnect()
 
     val isConnected: Boolean get() = snapshot.value.state == SessionState.CONNECTED
+
+    private fun isSameTarget(profile: ConnectionProfile): Boolean {
+        val current = snapshot.value
+        return current.host == profile.host &&
+            current.port == profile.port &&
+            current.username == profile.username
+    }
 }

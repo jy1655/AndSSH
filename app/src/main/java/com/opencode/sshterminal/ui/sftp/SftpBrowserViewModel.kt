@@ -3,11 +3,14 @@ package com.opencode.sshterminal.ui.sftp
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import com.opencode.sshterminal.data.ConnectionRepository
 import com.opencode.sshterminal.session.ConnectRequest
 import com.opencode.sshterminal.sftp.RemoteEntry
 import com.opencode.sshterminal.sftp.SftpChannelAdapter
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +20,9 @@ import javax.inject.Inject
 data class SftpUiState(
     val entries: List<RemoteEntry> = emptyList(),
     val remotePath: String = ".",
+    val downloadBasePath: String = "/sdcard/Download",
+    val uploadLocalPath: String = "",
+    val uploadRemotePath: String = "",
     val status: String = "",
     val busy: Boolean = false
 )
@@ -25,6 +31,7 @@ data class SftpUiState(
 class SftpBrowserViewModel @Inject constructor(
     private val sftpAdapter: SftpChannelAdapter,
     private val connectionRepository: ConnectionRepository,
+    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -42,7 +49,8 @@ class SftpBrowserViewModel @Inject constructor(
                 host = profile.host,
                 port = profile.port,
                 username = profile.username,
-                knownHostsPath = profile.knownHostsPath,
+                knownHostsPath = File(context.filesDir, "known_hosts").absolutePath,
+                password = profile.password,
                 privateKeyPath = profile.privateKeyPath,
                 cols = 80,
                 rows = 24
@@ -95,5 +103,17 @@ class SftpBrowserViewModel @Inject constructor(
 
     fun setRemotePath(path: String) {
         _uiState.value = _uiState.value.copy(remotePath = path)
+    }
+
+    fun setDownloadBasePath(path: String) {
+        _uiState.value = _uiState.value.copy(downloadBasePath = path)
+    }
+
+    fun setUploadLocalPath(path: String) {
+        _uiState.value = _uiState.value.copy(uploadLocalPath = path)
+    }
+
+    fun setUploadRemotePath(path: String) {
+        _uiState.value = _uiState.value.copy(uploadRemotePath = path)
     }
 }

@@ -136,6 +136,11 @@ private class RejectingKnownHostsVerifier(knownHosts: File) : KnownHostsVerifier
 }
 
 private class UpdatingKnownHostsVerifier(knownHosts: File) : KnownHostsVerifierBase(knownHosts) {
+    override fun hostKeyUnverifiableAction(hostname: String?, key: java.security.PublicKey?): Boolean {
+        changedFingerprint = key?.let { SecurityUtils.getFingerprint(it) } ?: "unknown"
+        return true
+    }
+
     override fun hostKeyChangedAction(hostname: String?, key: java.security.PublicKey?): Boolean {
         changedFingerprint = key?.let { SecurityUtils.getFingerprint(it) } ?: "unknown"
         return true

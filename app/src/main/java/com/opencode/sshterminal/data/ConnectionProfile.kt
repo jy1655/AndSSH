@@ -10,7 +10,7 @@ data class ConnectionProfile(
     val host: String,
     val port: Int = 22,
     val username: String,
+    val password: String? = null,
     val privateKeyPath: String? = null,
-    val knownHostsPath: String = "",
     val lastUsedEpochMillis: Long = 0L
 )

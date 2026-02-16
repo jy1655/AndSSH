@@ -87,6 +87,7 @@ dependencies {
 
     // SSH
     implementation("com.hierynomus:sshj:0.40.0")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.80")
 
     // Termux terminal emulator
     implementation("com.github.termux.termux-app:terminal-emulator:v0.118.1")

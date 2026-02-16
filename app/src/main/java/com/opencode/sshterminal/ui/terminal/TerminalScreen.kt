@@ -15,6 +15,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,14 @@ fun TerminalScreen(
     var stdinText by remember { mutableStateOf("") }
     var ctrlArmed by remember { mutableStateOf(false) }
     var altArmed by remember { mutableStateOf(false) }
+    var previousState by remember { mutableStateOf(snapshot.state) }
+
+    LaunchedEffect(snapshot.state) {
+        if (previousState == SessionState.CONNECTED && snapshot.state == SessionState.DISCONNECTED) {
+            onDisconnected()
+        }
+        previousState = snapshot.state
+    }
 
     Column(
         modifier = Modifier
@@ -64,6 +73,32 @@ fun TerminalScreen(
                 .padding(horizontal = 4.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            Button(
+                onClick = { onNavigateToOpenCode(viewModel.connectionId) },
+                modifier = Modifier.height(36.dp)
+            ) {
+                Text("OpenCode")
+            }
+            Button(
+                onClick = { onNavigateToSftp(viewModel.connectionId) },
+                modifier = Modifier.height(36.dp)
+            ) {
+                Text("SFTP")
+            }
+            Button(
+                onClick = { viewModel.disconnect() },
+                modifier = Modifier.height(36.dp)
+            ) {
+                Text("Disconnect")
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             Button(onClick = { ctrlArmed = !ctrlArmed }, modifier = Modifier.height(36.dp)) {
                 Text(if (ctrlArmed) "Ctrl*" else "Ctrl")
             }
@@ -75,6 +110,9 @@ fun TerminalScreen(
             }
             Button(onClick = { viewModel.sendText("\t"); ctrlArmed = false; altArmed = false }, modifier = Modifier.height(36.dp)) {
                 Text("TAB")
+            }
+            Button(onClick = { viewModel.sendText("\r"); ctrlArmed = false; altArmed = false }, modifier = Modifier.height(36.dp)) {
+                Text("ENTER")
             }
         }
 
