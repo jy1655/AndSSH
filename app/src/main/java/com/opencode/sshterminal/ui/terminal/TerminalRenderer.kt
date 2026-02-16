@@ -4,26 +4,37 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
+import com.opencode.sshterminal.R
 import com.opencode.sshterminal.terminal.TermuxTerminalBridge
+import com.opencode.sshterminal.ui.theme.TerminalBackground
+import com.opencode.sshterminal.ui.theme.TerminalCursor
+import com.opencode.sshterminal.ui.theme.TerminalForeground
 import com.termux.terminal.TerminalBuffer
 import com.termux.terminal.TextStyle as TermuxTextStyle
 
 private val TERMINAL_FONT_SIZE = 12.sp
+private val TERMINAL_FONT_FAMILY = FontFamily(Font(R.font.meslo_lgs_nf_regular))
 
 private val ANSI_COLORS = arrayOf(
     Color(0xFF000000), // 0 black
@@ -44,15 +55,16 @@ private val ANSI_COLORS = arrayOf(
     Color(0xFFFFFFFF)  // 15 bright white
 )
 
-private val DEFAULT_FG = Color(0xFFCCCCCC)
-private val DEFAULT_BG = Color(0xFF1E1E1E)
-private val CURSOR_COLOR = Color(0xFFA0A0A0)
+private val DEFAULT_FG = TerminalForeground
+private val DEFAULT_BG = TerminalBackground
+private val CURSOR_COLOR = TerminalCursor
 
 @Composable
 fun TerminalRenderer(
     bridge: TermuxTerminalBridge,
     modifier: Modifier = Modifier,
-    onTap: (() -> Unit)? = null
+    onTap: (() -> Unit)? = null,
+    onResize: ((cols: Int, rows: Int) -> Unit)? = null
 ) {
     val renderVersion by bridge.renderVersion.collectAsState()
     val textMeasurer = rememberTextMeasurer()
@@ -60,9 +72,21 @@ fun TerminalRenderer(
     val charSize = remember(textMeasurer) {
         val result = textMeasurer.measure(
             "W",
-            style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = TERMINAL_FONT_SIZE)
+            style = TextStyle(fontFamily = TERMINAL_FONT_FAMILY, fontSize = TERMINAL_FONT_SIZE)
         )
         Size(result.size.width.toFloat(), result.size.height.toFloat())
+    }
+
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+
+    LaunchedEffect(canvasSize, charSize) {
+        if (canvasSize.width > 0 && canvasSize.height > 0 && charSize.width > 0 && charSize.height > 0) {
+            val cols = (canvasSize.width / charSize.width).toInt().coerceAtLeast(1)
+            val rows = (canvasSize.height / charSize.height).toInt().coerceAtLeast(1)
+            if (cols != bridge.termCols || rows != bridge.termRows) {
+                onResize?.invoke(cols, rows)
+            }
+        }
     }
 
     @Suppress("UNUSED_EXPRESSION")
@@ -71,6 +95,7 @@ fun TerminalRenderer(
     Canvas(
         modifier = modifier
             .focusable()
+            .onSizeChanged { canvasSize = it }
             .pointerInput(Unit) {
                 if (onTap != null) {
                     detectTapGestures { onTap() }
@@ -147,7 +172,7 @@ private fun DrawScope.drawTerminalRow(
                 topLeft = Offset(safeX, y),
                 style = TextStyle(
                     color = fg,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = TERMINAL_FONT_FAMILY,
                     fontSize = TERMINAL_FONT_SIZE,
                     fontWeight = if (bold) androidx.compose.ui.text.font.FontWeight.Bold else null
                 )
@@ -161,10 +186,18 @@ private fun resolveColor(index: Int, default: Color): Color {
     return when {
         index == TermuxTextStyle.COLOR_INDEX_FOREGROUND -> DEFAULT_FG
         index == TermuxTextStyle.COLOR_INDEX_BACKGROUND -> DEFAULT_BG
+        (index and 0xFF000000.toInt()) == 0xFF000000.toInt() -> argbToColor(index)
         index in 0..15 -> ANSI_COLORS[index]
         index in 16..255 -> color256(index)
         else -> default
     }
+}
+
+private fun argbToColor(argb: Int): Color {
+    val r = (argb shr 16) and 0xFF
+    val g = (argb shr 8) and 0xFF
+    val b = argb and 0xFF
+    return Color(r, g, b)
 }
 
 private fun color256(index: Int): Color {

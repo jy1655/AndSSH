@@ -37,3 +37,8 @@ obj/
 
 # Misc
 Thumbs.db
+
+# Local debug captures (repository root)
+/screenshot_*.png
+/ss*.png
+/ui*.xml
