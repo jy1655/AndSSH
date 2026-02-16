@@ -1,23 +1,29 @@
 package com.opencode.sshterminal.session
 
-import com.opencode.sshterminal.ssh.SshClient
+import android.util.Log
 import com.opencode.sshterminal.ssh.HostKeyChangedException
+import com.opencode.sshterminal.ssh.SshClient
 import com.opencode.sshterminal.ssh.SshSession
-import com.opencode.sshterminal.terminal.TerminalEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class SessionStateMachine(
-    private val sshClient: SshClient,
-    private val terminalEngine: TerminalEngine
+@Singleton
+class SessionManager @Inject constructor(
+    private val sshClient: SshClient
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private val _snapshot = MutableStateFlow(
         SessionSnapshot(
             sessionId = SessionId(),
@@ -29,6 +35,12 @@ class SessionStateMachine(
     )
     val snapshot: StateFlow<SessionSnapshot> = _snapshot.asStateFlow()
 
+    private val _outputBytes = MutableSharedFlow<ByteArray>(
+        extraBufferCapacity = 256,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    val outputBytes: SharedFlow<ByteArray> = _outputBytes.asSharedFlow()
+
     private var activeSession: SshSession? = null
     private var pendingHostKeyRequest: ConnectRequest? = null
 
@@ -39,8 +51,7 @@ class SessionStateMachine(
                 state = SessionState.CONNECTING,
                 host = request.host,
                 port = request.port,
-                username = request.username,
-                hostKeyAlert = null
+                username = request.username
             )
 
             runCatching {
@@ -51,10 +62,11 @@ class SessionStateMachine(
                 _snapshot.value = _snapshot.value.copy(state = SessionState.CONNECTED, error = null)
 
                 session.readLoop { bytes ->
-                    terminalEngine.feed(bytes)
+                    _outputBytes.tryEmit(bytes)
                 }
                 _snapshot.value = _snapshot.value.copy(state = SessionState.DISCONNECTED)
             }.onFailure { err ->
+                Log.e(TAG, "Connection failed", err)
                 if (err is HostKeyChangedException) {
                     pendingHostKeyRequest = request
                     _snapshot.value = _snapshot.value.copy(
@@ -97,11 +109,6 @@ class SessionStateMachine(
         }
     }
 
-    fun destroy() {
-        disconnect()
-        scope.cancel()
-    }
-
     fun dismissHostKeyAlert() {
         pendingHostKeyRequest = null
         _snapshot.value = _snapshot.value.copy(hostKeyAlert = null)
@@ -119,5 +126,12 @@ class SessionStateMachine(
         pendingHostKeyRequest = null
         _snapshot.value = _snapshot.value.copy(hostKeyAlert = null, error = null)
         connect(request.copy(hostKeyPolicy = HostKeyPolicy.UPDATE_KNOWN_HOSTS))
+    }
+
+    val isConnected: Boolean
+        get() = _snapshot.value.state == SessionState.CONNECTED
+
+    companion object {
+        private const val TAG = "SessionManager"
     }
 }
