@@ -3,6 +3,7 @@ package com.opencode.sshterminal.ui.terminal
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -79,6 +80,8 @@ fun TerminalRenderer(
     }
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    var scrollOffset by remember { mutableStateOf(0) }
+    var scrollPixelAccumulator by remember { mutableStateOf(0f) }
 
     LaunchedEffect(canvasSize, charSize) {
         if (canvasSize.width > 0 && canvasSize.height > 0 && charSize.width > 0 && charSize.height > 0) {
@@ -97,7 +100,21 @@ fun TerminalRenderer(
         modifier = modifier
             .focusable()
             .onSizeChanged { canvasSize = it }
-            .pointerInput(Unit) {
+            .pointerInput(charSize.height) {
+                detectVerticalDragGestures(
+                    onDragEnd = { scrollPixelAccumulator = 0f },
+                    onDragCancel = { scrollPixelAccumulator = 0f }
+                ) { _, dragAmount ->
+                    scrollPixelAccumulator += dragAmount
+                    val rowDelta = (scrollPixelAccumulator / charSize.height).toInt()
+                    if (rowDelta != 0) {
+                        scrollPixelAccumulator -= rowDelta * charSize.height
+                        val maxScroll = bridge.screen.activeTranscriptRows
+                        scrollOffset = (scrollOffset + rowDelta).coerceIn(0, maxScroll)
+                    }
+                }
+            }
+            .pointerInput(onTap) {
                 if (onTap != null) {
                     detectTapGestures { onTap() }
                 }
@@ -108,14 +125,17 @@ fun TerminalRenderer(
         val screen = bridge.screen
         val rows = bridge.termRows
         val cols = bridge.termCols
+        val effectiveScroll = scrollOffset.coerceIn(0, screen.activeTranscriptRows)
 
-        for (row in 0 until rows) {
-            drawTerminalRow(screen, row, cols, charSize, textMeasurer)
+        for (screenRow in 0 until rows) {
+            val bufferRow = screenRow - effectiveScroll
+            drawTerminalRow(screen, bufferRow, screenRow, cols, charSize, textMeasurer)
         }
 
-        val cx = bridge.cursorCol * charSize.width
-        val cy = bridge.cursorRow * charSize.height
-        if (bridge.emulator.shouldCursorBeVisible()) {
+        val cursorScreenRow = bridge.cursorRow + effectiveScroll
+        if (cursorScreenRow in 0 until rows && bridge.emulator.shouldCursorBeVisible()) {
+            val cx = bridge.cursorCol * charSize.width
+            val cy = cursorScreenRow * charSize.height
             drawRect(CURSOR_COLOR, Offset(cx, cy), Size(charSize.width, charSize.height), alpha = 0.5f)
         }
     }
@@ -123,13 +143,14 @@ fun TerminalRenderer(
 
 private fun DrawScope.drawTerminalRow(
     screen: TerminalBuffer,
-    row: Int,
+    bufferRow: Int,
+    screenRow: Int,
     cols: Int,
     charSize: Size,
     textMeasurer: TextMeasurer
 ) {
-    val termRow = screen.allocateFullLineIfNecessary(screen.externalToInternalRow(row))
-    val y = row * charSize.height
+    val termRow = screen.allocateFullLineIfNecessary(screen.externalToInternalRow(bufferRow))
+    val y = screenRow * charSize.height
     if (y >= size.height) return
 
     var col = 0
