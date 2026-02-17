@@ -3,69 +3,125 @@ package com.opencode.sshterminal.sftp
 import com.opencode.sshterminal.session.ConnectRequest
 import com.opencode.sshterminal.session.HostKeyPolicy
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.schmizz.sshj.SSHClient
+import net.schmizz.sshj.sftp.OpenMode
 import net.schmizz.sshj.sftp.RemoteResourceInfo
+import net.schmizz.sshj.sftp.SFTPClient
 import net.schmizz.sshj.transport.verification.OpenSSHKnownHosts
 import net.schmizz.sshj.transport.verification.PromiscuousVerifier
+import java.util.EnumSet
 
 class SshjSftpAdapter : SftpChannelAdapter {
-    override suspend fun list(request: ConnectRequest, remotePath: String): List<RemoteEntry> = withContext(Dispatchers.IO) {
-        withClient(request) { ssh ->
-            ssh.newSFTPClient().use { sftp ->
-                sftp.ls(remotePath).map { it.toRemoteEntry() }
-            }
+    private var ssh: SSHClient? = null
+    private var sftp: SFTPClient? = null
+
+    override val isConnected: Boolean get() = ssh?.isConnected == true && sftp != null
+
+    override suspend fun connect(request: ConnectRequest) = withContext(Dispatchers.IO) {
+        close()
+        val client = SSHClient()
+        configureHostKeyVerifier(client, request)
+        client.connect(request.host, request.port)
+        authenticate(client, request)
+        ssh = client
+        sftp = client.newSFTPClient()
+    }
+
+    override fun close() {
+        runCatching { sftp?.close() }
+        runCatching { ssh?.disconnect() }
+        runCatching { ssh?.close() }
+        sftp = null
+        ssh = null
+    }
+
+    override suspend fun list(remotePath: String): List<RemoteEntry> = withContext(Dispatchers.IO) {
+        requireSftp().ls(remotePath).map { it.toRemoteEntry() }
+    }
+
+    override suspend fun exists(remotePath: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            requireSftp().stat(remotePath)
+            true
+        } catch (t: Throwable) {
+            if (isSftpNoSuchFileError(t)) false else throw t
         }
     }
 
-    override suspend fun exists(request: ConnectRequest, remotePath: String): Boolean = withContext(Dispatchers.IO) {
-        withClient(request) { ssh ->
-            ssh.newSFTPClient().use { sftp ->
-                try {
-                    sftp.stat(remotePath)
-                    true
-                } catch (t: Throwable) {
-                    if (isSftpNoSuchFileError(t)) {
-                        false
-                    } else {
-                        throw t
-                    }
-                }
-            }
-        }
+    override suspend fun upload(localPath: String, remotePath: String) = withContext(Dispatchers.IO) {
+        requireSftp().put(localPath, remotePath)
     }
 
-    override suspend fun upload(request: ConnectRequest, localPath: String, remotePath: String) = withContext(Dispatchers.IO) {
-        withClient(request) { ssh ->
-            ssh.newSFTPClient().use { sftp ->
-                sftp.put(localPath, remotePath)
+    override suspend fun uploadStream(
+        input: InputStream, remotePath: String, totalBytes: Long,
+        onProgress: ((Long, Long) -> Unit)?
+    ) = withContext(Dispatchers.IO) {
+        val handle = requireSftp().open(remotePath, EnumSet.of(OpenMode.WRITE, OpenMode.CREAT, OpenMode.TRUNC))
+        try {
+            val buf = ByteArray(DEFAULT_BUFFER_SIZE)
+            var offset = 0L
+            while (true) {
+                val read = input.read(buf)
+                if (read < 0) break
+                handle.write(offset, buf, 0, read)
+                offset += read
+                onProgress?.invoke(offset, totalBytes)
             }
-        }
-    }
-
-    override suspend fun download(request: ConnectRequest, remotePath: String, localPath: String) = withContext(Dispatchers.IO) {
-        withClient(request) { ssh ->
-            ssh.newSFTPClient().use { sftp ->
-                sftp.get(remotePath, localPath)
-            }
-        }
-    }
-
-    private inline fun <T> withClient(request: ConnectRequest, block: (SSHClient) -> T): T {
-        val ssh = SSHClient()
-        configureHostKeyVerifier(ssh, request)
-        ssh.connect(request.host, request.port)
-
-        authenticate(ssh, request)
-
-        return try {
-            block(ssh)
         } finally {
-            runCatching { ssh.disconnect() }
-            runCatching { ssh.close() }
+            runCatching { handle.close() }
         }
     }
+
+    override suspend fun download(remotePath: String, localPath: String) = withContext(Dispatchers.IO) {
+        requireSftp().get(remotePath, localPath)
+    }
+
+    override suspend fun downloadStream(
+        remotePath: String, output: OutputStream,
+        onProgress: ((Long, Long) -> Unit)?
+    ) = withContext(Dispatchers.IO) {
+        val attrs = requireSftp().stat(remotePath)
+        val totalBytes = attrs.size
+        val handle = requireSftp().open(remotePath, EnumSet.of(OpenMode.READ))
+        try {
+            val buf = ByteArray(DEFAULT_BUFFER_SIZE)
+            var offset = 0L
+            while (true) {
+                val read = handle.read(offset, buf, 0, buf.size)
+                if (read < 0) break
+                output.write(buf, 0, read)
+                offset += read
+                onProgress?.invoke(offset, totalBytes)
+            }
+            output.flush()
+        } finally {
+            runCatching { handle.close() }
+        }
+    }
+
+    override suspend fun mkdir(remotePath: String) = withContext(Dispatchers.IO) {
+        requireSftp().mkdir(remotePath)
+    }
+
+    override suspend fun rm(remotePath: String) = withContext(Dispatchers.IO) {
+        val attrs = requireSftp().stat(remotePath)
+        if (attrs.type == net.schmizz.sshj.sftp.FileMode.Type.DIRECTORY) {
+            requireSftp().rmdir(remotePath)
+        } else {
+            requireSftp().rm(remotePath)
+        }
+    }
+
+    override suspend fun rename(oldPath: String, newPath: String) = withContext(Dispatchers.IO) {
+        requireSftp().rename(oldPath, newPath)
+    }
+
+    private fun requireSftp(): SFTPClient =
+        sftp ?: error("Not connected. Call connect() first.")
 
     private fun authenticate(ssh: SSHClient, request: ConnectRequest) {
         when {

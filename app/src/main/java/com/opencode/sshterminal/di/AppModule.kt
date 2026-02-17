@@ -34,7 +34,6 @@ object AppModule {
     }
 
     @Provides
-    @Singleton
     fun provideSftpAdapter(): SftpChannelAdapter {
         return SshjSftpAdapter()
     }

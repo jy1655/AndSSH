@@ -11,16 +11,18 @@ Android native SSH terminal app scaffold focused on TTY-based remote CLI workflo
 - `sshj`-based real SSH adapter with `PTY shell`, `window-change`, and stream read/write loop
 - Host key change detection UX (fingerprint dialog with `Reject (Default)`, `Trust Once`, `Update known_hosts`)
 - stdin 입력 UI (`Ctrl/Alt/ESC/TAB/ENTER`, 방향키, `^C/^D`, 실시간 키 입력 전송)
-- `sshj` SFTP channel adapter (`list`, `upload`, `download`)
-- Main 화면에 SFTP 파일 브라우저 섹션(`List`, 디렉터리 `Open`, 파일 `Download`, 경로 기반 `Upload`)
+- SFTP 파일 브라우저: 영속 세션, 자동 디렉터리 리스팅, SAF 기반 업로드/다운로드(진행률 표시), mkdir/삭제/이름변경, 롱프레스 컨텍스트 메뉴
 - Android 14+/targetSdk 35 foreground service 권한 정리 (`FOREGROUND_SERVICE_DATA_SYNC`)
 - 터미널 렌더링 개선: Nerd Font 번들 적용 + truecolor(24-bit) 색상 처리
 - GitHub Actions CI: `assembleDebug` + `testDebugUnitTest`
 - Placeholder key repository interface for Keystore+AEAD implementation
 
+- 한글/CJK 입력 정상 처리 (IME composition 인식) + 전각 문자 렌더링
+- 터미널 스크롤백 (드래그로 이전 출력 확인, 2000줄 버퍼)
+
 ## Current scope
 
-This is still MVP scaffolding, but SSH connection now uses `sshj`.
+SSH 터미널 + SFTP 파일 관리가 동작하는 상태. `sshj` 기반.
 
 ## Build & test (CLI, WSL 기준)
 
@@ -85,7 +87,7 @@ If `no permissions` appears, add a udev rule for your vendor ID and reload rules
 
 1. Replace custom Compose renderer with `terminal-view` integration (or `libvterm`-based engine)
 2. Implement `KeyRepository` with Android Keystore-backed AEAD encryption
-3. Replace plain text fields with dedicated file pickers and progress percentage UI for large transfers
+3. SFTP 개선: pull-to-refresh (Compose BOM 업그레이드 필요), 재귀 디렉터리 삭제, 다중 파일 선택
 
 ## Important paths
 
@@ -93,5 +95,8 @@ If `no permissions` appears, add a udev rule for your vendor ID and reload rules
 - `app/src/main/java/com/opencode/sshterminal/ssh/SshClient.kt`
 - `app/src/main/java/com/opencode/sshterminal/terminal/TermuxTerminalBridge.kt`
 - `app/src/main/java/com/opencode/sshterminal/service/SshForegroundService.kt`
+- `app/src/main/java/com/opencode/sshterminal/sftp/SftpChannelAdapter.kt`
 - `app/src/main/java/com/opencode/sshterminal/sftp/SshjSftpAdapter.kt`
+- `app/src/main/java/com/opencode/sshterminal/ui/sftp/SftpBrowserViewModel.kt`
+- `app/src/main/java/com/opencode/sshterminal/ui/sftp/SftpBrowserScreen.kt`
 - `app/src/test/java/com/opencode/sshterminal/sftp/SshjSftpAdapterTest.kt`

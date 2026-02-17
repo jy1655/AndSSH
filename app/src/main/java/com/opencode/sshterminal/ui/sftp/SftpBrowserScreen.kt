@@ -1,13 +1,20 @@
 package com.opencode.sshterminal.ui.sftp
 
-import androidx.compose.foundation.clickable
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -17,17 +24,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.automirrored.filled.NavigateNext
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -37,23 +52,54 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.documentfile.provider.DocumentFile
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.opencode.sshterminal.sftp.RemoteEntry
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SftpBrowserScreen(
     onBack: () -> Unit,
     viewModel: SftpBrowserViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    var showMkdirDialog by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<RemoteEntry?>(null) }
+    var deleteTarget by remember { mutableStateOf<RemoteEntry?>(null) }
+    var contextMenuEntry by remember { mutableStateOf<RemoteEntry?>(null) }
+    var pendingDownloadPath by remember { mutableStateOf("") }
+
+    val downloadLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri: Uri? ->
+        if (uri != null && pendingDownloadPath.isNotEmpty()) {
+            viewModel.downloadToStream(pendingDownloadPath, uri)
+        }
+        pendingDownloadPath = ""
+    }
+
+    val uploadLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val docFile = DocumentFile.fromSingleUri(context, uri)
+            val fileName = docFile?.name ?: "upload_${System.currentTimeMillis()}"
+            viewModel.uploadFromUri(uri, fileName)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -65,14 +111,24 @@ fun SftpBrowserScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { uploadLauncher.launch("*/*") }) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = "Upload")
+                    }
                     if (state.busy) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp).padding(end = 8.dp),
+                            modifier = Modifier
+                                .size(24.dp)
+                                .padding(end = 4.dp),
                             strokeWidth = 2.dp
                         )
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showMkdirDialog = true }) {
+                Icon(Icons.Default.CreateNewFolder, contentDescription = "New Folder")
+            }
         }
     ) { padding ->
         Column(
@@ -88,9 +144,24 @@ fun SftpBrowserScreen(
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             )
 
+            AnimatedVisibility(
+                visible = state.transferProgress >= 0f,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                LinearProgressIndicator(
+                    progress = { state.transferProgress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             HorizontalDivider()
 
-            if (state.status.isNotBlank()) {
+            AnimatedVisibility(
+                visible = state.status.isNotBlank(),
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
                 Text(
                     text = state.status,
                     style = MaterialTheme.typography.bodySmall,
@@ -100,66 +171,169 @@ fun SftpBrowserScreen(
             }
 
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
                 items(state.entries, key = { it.path }) { entry ->
-                    FileEntryRow(
-                        entry = entry,
-                        onOpen = {
-                            if (entry.isDirectory) {
-                                viewModel.navigateTo(entry.path)
-                            } else {
-                                val basePath = state.downloadBasePath.trimEnd('/')
-                                viewModel.download(entry.path, "$basePath/${entry.name}")
+                    Box {
+                        FileEntryRow(
+                            entry = entry,
+                            onClick = {
+                                if (entry.isDirectory) {
+                                    viewModel.navigateTo(entry.path)
+                                }
+                            },
+                            onLongClick = {
+                                contextMenuEntry = entry
                             }
-                        }
-                    )
-                }
-            }
+                        )
 
-            HorizontalDivider()
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = state.remotePath,
-                    onValueChange = { viewModel.setRemotePath(it) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    label = { Text("Path") },
-                    trailingIcon = {
-                        IconButton(onClick = { viewModel.list() }) {
-                            Icon(Icons.Default.Folder, contentDescription = "List")
+                        DropdownMenu(
+                            expanded = contextMenuEntry == entry,
+                            onDismissRequest = { contextMenuEntry = null }
+                        ) {
+                            if (entry.isDirectory) {
+                                DropdownMenuItem(
+                                    text = { Text("Open") },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.FolderOpen, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        contextMenuEntry = null
+                                        viewModel.navigateTo(entry.path)
+                                    }
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text("Download") },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        contextMenuEntry = null
+                                        pendingDownloadPath = entry.path
+                                        downloadLauncher.launch(entry.name)
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Rename") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.DriveFileRenameOutline, contentDescription = null)
+                                },
+                                onClick = {
+                                    contextMenuEntry = null
+                                    renameTarget = entry
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                onClick = {
+                                    contextMenuEntry = null
+                                    deleteTarget = entry
+                                }
+                            )
                         }
                     }
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { viewModel.upload(state.uploadLocalPath, state.uploadRemotePath) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Upload")
                 }
             }
         }
     }
+
+    if (showMkdirDialog) {
+        InputDialog(
+            title = "New Folder",
+            placeholder = "Folder name",
+            confirmLabel = "Create",
+            onConfirm = { name ->
+                showMkdirDialog = false
+                if (name.isNotBlank()) viewModel.mkdir(name)
+            },
+            onDismiss = { showMkdirDialog = false }
+        )
+    }
+
+    renameTarget?.let { entry ->
+        InputDialog(
+            title = "Rename",
+            placeholder = "New name",
+            initialValue = entry.name,
+            confirmLabel = "Rename",
+            onConfirm = { newName ->
+                renameTarget = null
+                if (newName.isNotBlank() && newName != entry.name) {
+                    viewModel.rename(entry.path, newName)
+                }
+            },
+            onDismiss = { renameTarget = null }
+        )
+    }
+
+    deleteTarget?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete") },
+            text = { Text("Delete \"${entry.name}\"?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    deleteTarget = null
+                    viewModel.rm(entry.path)
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
+
+// ---------- Reusable input dialog ----------
+
+@Composable
+private fun InputDialog(
+    title: String,
+    placeholder: String,
+    initialValue: String = "",
+    confirmLabel: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var text by remember { mutableStateOf(initialValue) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                placeholder = { Text(placeholder) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }) { Text(confirmLabel) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+// ---------- Breadcrumbs ----------
 
 @Composable
 private fun Breadcrumbs(
@@ -193,15 +367,22 @@ private fun Breadcrumbs(
     }
 }
 
+// ---------- File entry row ----------
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FileEntryRow(
     entry: RemoteEntry,
-    onOpen: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onOpen)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -250,6 +431,8 @@ private fun FileEntryRow(
         }
     }
 }
+
+// ---------- Utilities ----------
 
 private fun formatFileSize(bytes: Long): String = when {
     bytes < 1024 -> "$bytes B"

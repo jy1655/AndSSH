@@ -77,6 +77,9 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.51.1")
     ksp("com.google.dagger:hilt-android-compiler:2.51.1")
 
+    // DocumentFile (SAF helper)
+    implementation("androidx.documentfile:documentfile:1.0.1")
+
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
