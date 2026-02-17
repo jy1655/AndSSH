@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -40,7 +41,8 @@ fun TerminalInputBar(
     onMenuClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    var inputText by remember { mutableStateOf("") }
+    var textFieldValue by remember { mutableStateOf(TextFieldValue()) }
+    var lastCommittedText by remember { mutableStateOf("") }
     var ctrlArmed by remember { mutableStateOf(false) }
     var altArmed by remember { mutableStateOf(false) }
 
@@ -51,6 +53,19 @@ fun TerminalInputBar(
             ctrlArmed = false
             altArmed = false
         }
+    }
+
+    val flushComposing = {
+        val comp = textFieldValue.composition
+        if (comp != null) {
+            val composingText = textFieldValue.text.substring(comp.start, comp.end)
+            if (composingText.isNotEmpty()) sendTypedText(composingText)
+        }
+    }
+
+    val clearInput = {
+        textFieldValue = TextFieldValue()
+        lastCommittedText = ""
     }
 
     val sendEnter = {
@@ -97,23 +112,27 @@ fun TerminalInputBar(
                 horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 BasicTextField(
-                    value = inputText,
-                    onValueChange = { newText ->
-                        when {
-                            newText.startsWith(inputText) -> {
-                                val inserted = newText.substring(inputText.length)
-                                if (inserted.isNotEmpty()) sendTypedText(inserted)
+                    value = textFieldValue,
+                    onValueChange = { newValue ->
+                        val newCommitted = newValue.committedText()
+                        if (newCommitted != lastCommittedText) {
+                            when {
+                                newCommitted.startsWith(lastCommittedText) -> {
+                                    val inserted = newCommitted.substring(lastCommittedText.length)
+                                    if (inserted.isNotEmpty()) sendTypedText(inserted)
+                                }
+                                lastCommittedText.startsWith(newCommitted) -> {
+                                    val deleted = lastCommittedText.length - newCommitted.length
+                                    repeat(deleted) { onSendBytes(byteArrayOf(0x7F)) }
+                                }
+                                else -> {
+                                    repeat(lastCommittedText.length) { onSendBytes(byteArrayOf(0x7F)) }
+                                    if (newCommitted.isNotEmpty()) sendTypedText(newCommitted)
+                                }
                             }
-                            inputText.startsWith(newText) -> {
-                                val deleted = inputText.length - newText.length
-                                repeat(deleted) { onSendBytes(byteArrayOf(0x7F)) }
-                            }
-                            else -> {
-                                repeat(inputText.length) { onSendBytes(byteArrayOf(0x7F)) }
-                                if (newText.isNotEmpty()) sendTypedText(newText)
-                            }
+                            lastCommittedText = newCommitted
                         }
-                        inputText = newText.takeLast(256)
+                        textFieldValue = newValue
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -130,12 +149,12 @@ fun TerminalInputBar(
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(
-                        onSend = { sendEnter(); inputText = "" },
-                        onDone = { sendEnter(); inputText = "" }
+                        onSend = { flushComposing(); sendEnter(); clearInput() },
+                        onDone = { flushComposing(); sendEnter(); clearInput() }
                     ),
                     decorationBox = { innerTextField ->
                         Box(contentAlignment = Alignment.CenterStart) {
-                            if (inputText.isEmpty()) {
+                            if (textFieldValue.text.isEmpty()) {
                                 Text(
                                     "...",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
@@ -148,7 +167,7 @@ fun TerminalInputBar(
                     }
                 )
 
-                KeyChip("\u23CE") { sendEnter(); inputText = "" }
+                KeyChip("\u23CE") { flushComposing(); sendEnter(); clearInput() }
             }
         }
     }
@@ -216,6 +235,11 @@ private fun ToggleKeyChip(
             )
         }
     }
+}
+
+private fun TextFieldValue.committedText(): String {
+    val comp = composition ?: return text
+    return text.removeRange(comp.start, comp.end)
 }
 
 private fun buildPayload(text: String, ctrlArmed: Boolean, altArmed: Boolean): ByteArray {

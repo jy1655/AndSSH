@@ -154,6 +154,9 @@ private class SshjSession(
     private var shell: Session.Shell? = null
 
     override suspend fun openPtyShell(termType: String, cols: Int, rows: Int) = withContext(Dispatchers.IO) {
+        // Best-effort: servers may reject (AcceptEnv policy)
+        runCatching { session.setEnvVar("LANG", "en_US.UTF-8") }
+        runCatching { session.setEnvVar("LC_CTYPE", "en_US.UTF-8") }
         session.allocatePTY(termType, cols, rows, 0, 0, linkedMapOf<PTYMode, Int>())
         shell = session.startShell()
     }

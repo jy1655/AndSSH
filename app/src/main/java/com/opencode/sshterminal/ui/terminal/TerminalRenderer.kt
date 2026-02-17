@@ -31,6 +31,7 @@ import com.opencode.sshterminal.ui.theme.TerminalBackground
 import com.opencode.sshterminal.ui.theme.TerminalCursor
 import com.opencode.sshterminal.ui.theme.TerminalForeground
 import com.termux.terminal.TerminalBuffer
+import com.termux.terminal.WcWidth
 import com.termux.terminal.TextStyle as TermuxTextStyle
 
 private val TERMINAL_FONT_SIZE = 12.sp
@@ -158,9 +159,10 @@ private fun DrawScope.drawTerminalRow(
         } else {
             " "
         }
+        val charWidth = if (codePoint > 0x7F) WcWidth.width(codePoint).coerceAtLeast(1) else 1
 
         if (bg != DEFAULT_BG) {
-            drawRect(bg, Offset(x, y), charSize)
+            drawRect(bg, Offset(x, y), Size(charSize.width * charWidth, charSize.height))
         }
 
         if (ch.isNotBlank()) {
@@ -178,7 +180,7 @@ private fun DrawScope.drawTerminalRow(
                 )
             )
         }
-        col++
+        col += charWidth
     }
 }
 
