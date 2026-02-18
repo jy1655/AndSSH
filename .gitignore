@@ -11,10 +11,15 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+*.dex
+*.ap_
+output-metadata.json
+*.hprof
 
 # IntelliJ/Android Studio
 .idea/
 *.iml
+.navigation/
 
 # Kotlin/Java
 *.class
@@ -37,10 +42,15 @@ obj/
 
 # Misc
 Thumbs.db
+*.tmp
+*.bak
+*.swp
+*~
 
 # Local debug captures (repository root)
 /screenshot_*.png
 /ss*.png
 /ui*.xml
-*.opencode
 
+# OpenCode
+.opencode/
