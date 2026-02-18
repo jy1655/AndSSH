@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.opencode.sshterminal.security.EncryptionManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -14,7 +15,8 @@ import javax.inject.Singleton
 
 @Singleton
 class ConnectionRepository @Inject constructor(
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val encryptionManager: EncryptionManager
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -22,15 +24,13 @@ class ConnectionRepository @Inject constructor(
         prefs.asMap()
             .filter { (key, _) -> key.name.startsWith(KEY_PREFIX) }
             .values
-            .mapNotNull { value ->
-                runCatching { json.decodeFromString<ConnectionProfile>(value as String) }.getOrNull()
-            }
+            .mapNotNull { value -> decodeProfile(value as String) }
             .sortedByDescending { it.lastUsedEpochMillis }
     }
 
     suspend fun save(profile: ConnectionProfile) {
         dataStore.edit { prefs ->
-            prefs[keyFor(profile.id)] = json.encodeToString(profile)
+            prefs[keyFor(profile.id)] = encryptionManager.encrypt(json.encodeToString(profile))
         }
     }
 
@@ -43,17 +43,24 @@ class ConnectionRepository @Inject constructor(
     suspend fun get(id: String): ConnectionProfile? {
         val prefs = dataStore.data.first()
         val raw = prefs[keyFor(id)] ?: return null
-        return runCatching { json.decodeFromString<ConnectionProfile>(raw) }.getOrNull()
+        return decodeProfile(raw)
     }
 
     suspend fun touchLastUsed(id: String) {
         dataStore.edit { prefs ->
             val raw = prefs[keyFor(id)] ?: return@edit
-            val profile = runCatching { json.decodeFromString<ConnectionProfile>(raw) }.getOrNull() ?: return@edit
-            prefs[keyFor(id)] = json.encodeToString(
-                profile.copy(lastUsedEpochMillis = System.currentTimeMillis())
-            )
+            val profile = decodeProfile(raw) ?: return@edit
+            val updated = profile.copy(lastUsedEpochMillis = System.currentTimeMillis())
+            prefs[keyFor(id)] = encryptionManager.encrypt(json.encodeToString(updated))
         }
+    }
+
+    private fun decodeProfile(raw: String): ConnectionProfile? {
+        runCatching {
+            val decrypted = encryptionManager.decrypt(raw)
+            return json.decodeFromString<ConnectionProfile>(decrypted)
+        }
+        return runCatching { json.decodeFromString<ConnectionProfile>(raw) }.getOrNull()
     }
 
     private fun keyFor(id: String) = stringPreferencesKey("$KEY_PREFIX$id")
