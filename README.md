@@ -1,4 +1,4 @@
-# OpenCode SSH Terminal (MVP Scaffold)
+# SSH Terminal (MVP Scaffold)
 
 Android native SSH terminal app scaffold focused on TTY-based remote CLI workflows.
 

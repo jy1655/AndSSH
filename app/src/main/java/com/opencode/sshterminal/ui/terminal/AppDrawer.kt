@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.DrawerState
@@ -29,7 +28,6 @@ fun AppDrawer(
     drawerState: DrawerState,
     connectionInfo: String,
     onTerminal: () -> Unit,
-    onOpenCode: () -> Unit,
     onSftp: () -> Unit,
     onDisconnect: () -> Unit
 ) {
@@ -65,14 +63,6 @@ fun AppDrawer(
             label = { Text("Terminal") },
             selected = true,
             onClick = { close(onTerminal) },
-            modifier = Modifier.fillMaxWidth().padding(NavigationDrawerItemDefaults.ItemPadding)
-        )
-
-        NavigationDrawerItem(
-            icon = { Icon(Icons.Default.Code, contentDescription = null) },
-            label = { Text("OpenCode") },
-            selected = false,
-            onClick = { close(onOpenCode) },
             modifier = Modifier.fillMaxWidth().padding(NavigationDrawerItemDefaults.ItemPadding)
         )
 

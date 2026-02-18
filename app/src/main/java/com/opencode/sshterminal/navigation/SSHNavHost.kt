@@ -8,7 +8,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.opencode.sshterminal.ui.connection.ConnectionListScreen
-import com.opencode.sshterminal.ui.opencode.OpenCodeScreen
 import com.opencode.sshterminal.ui.sftp.SftpBrowserScreen
 import com.opencode.sshterminal.ui.terminal.TerminalScreen
 
@@ -35,24 +34,12 @@ fun SSHNavHost(
             arguments = listOf(navArgument("connectionId") { type = NavType.StringType })
         ) {
             TerminalScreen(
-                onNavigateToOpenCode = { connectionId ->
-                    navController.navigate(Routes.opencode(connectionId))
-                },
                 onNavigateToSftp = { connectionId ->
                     navController.navigate(Routes.sftp(connectionId))
                 },
                 onDisconnected = {
                     navController.popBackStack(Routes.CONNECTION_LIST, inclusive = false)
                 }
-            )
-        }
-
-        composable(
-            route = Routes.OPENCODE,
-            arguments = listOf(navArgument("connectionId") { type = NavType.StringType })
-        ) {
-            OpenCodeScreen(
-                onBack = { navController.popBackStack() }
             )
         }
 

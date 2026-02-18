@@ -15,5 +15,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "OpenCodeSshTerminal"
+rootProject.name = "SshTerminal"
 include(":app")

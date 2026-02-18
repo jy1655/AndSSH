@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun TerminalScreen(
-    onNavigateToOpenCode: (connectionId: String) -> Unit,
     onNavigateToSftp: (connectionId: String) -> Unit,
     onDisconnected: () -> Unit,
     viewModel: TerminalViewModel = hiltViewModel()
@@ -60,7 +59,6 @@ fun TerminalScreen(
                 drawerState = drawerState,
                 connectionInfo = connectionInfo,
                 onTerminal = { },
-                onOpenCode = { onNavigateToOpenCode(viewModel.connectionId) },
                 onSftp = { onNavigateToSftp(viewModel.connectionId) },
                 onDisconnect = { viewModel.disconnect() }
             )

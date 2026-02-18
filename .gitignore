@@ -42,3 +42,5 @@ Thumbs.db
 /screenshot_*.png
 /ss*.png
 /ui*.xml
+*.opencode
+
