@@ -1,11 +1,13 @@
 package com.opencode.sshterminal.ui.terminal
 
+import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import android.content.Context
 import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionRepository
+import com.opencode.sshterminal.service.SshForegroundService
 import com.opencode.sshterminal.session.ConnectRequest
 import com.opencode.sshterminal.session.SessionManager
 import com.opencode.sshterminal.session.SessionSnapshot
@@ -16,6 +18,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -46,6 +49,18 @@ class TerminalViewModel @Inject constructor(
             }
         }
 
+        viewModelScope.launch {
+            sessionManager.snapshot
+                .distinctUntilChangedBy { it.state }
+                .collect { snap ->
+                    when (snap.state) {
+                        SessionState.DISCONNECTED, SessionState.IDLE ->
+                            context.stopService(Intent(context, SshForegroundService::class.java))
+                        else -> { }
+                    }
+                }
+        }
+
         if (connectionId.isNotEmpty()) {
             viewModelScope.launch {
                 val profile = connectionRepository.get(connectionId) ?: return@launch
@@ -53,6 +68,9 @@ class TerminalViewModel @Inject constructor(
                 if (shouldConnect) {
                     bridge.reset()
                     connectionRepository.touchLastUsed(profile.id)
+                    context.startForegroundService(
+                        Intent(context, SshForegroundService::class.java)
+                    )
                     sessionManager.connect(
                         ConnectRequest(
                             host = profile.host,
