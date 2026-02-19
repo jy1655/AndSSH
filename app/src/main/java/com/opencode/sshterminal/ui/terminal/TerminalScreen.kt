@@ -1,5 +1,8 @@
 package com.opencode.sshterminal.ui.terminal
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,6 +49,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -59,6 +63,7 @@ fun TerminalScreen(
     onAllTabsClosed: () -> Unit,
     viewModel: TerminalViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val tabs by viewModel.tabs.collectAsState()
     val activeTabId by viewModel.activeTabId.collectAsState()
     val activeSnapshot by viewModel.activeSnapshot.collectAsState()
@@ -172,8 +177,12 @@ fun TerminalScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                onTap = { },
-                onResize = { cols, rows -> viewModel.resize(cols, rows) }
+                onTap = null,
+                onResize = { cols, rows -> viewModel.resize(cols, rows) },
+                onCopyText = { text ->
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("terminal", text))
+                }
             )
 
             val error = activeSnapshot?.error

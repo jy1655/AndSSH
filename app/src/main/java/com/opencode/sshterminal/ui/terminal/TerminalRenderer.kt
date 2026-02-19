@@ -1,21 +1,29 @@
 package com.opencode.sshterminal.ui.terminal
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextMeasurer
@@ -25,6 +33,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.opencode.sshterminal.R
 import com.opencode.sshterminal.terminal.TermuxTerminalBridge
@@ -61,12 +70,32 @@ private val DEFAULT_FG = TerminalForeground
 private val DEFAULT_BG = TerminalBackground
 private val CURSOR_COLOR = TerminalCursor
 
+data class TerminalSelection(
+    val startRow: Int,
+    val startCol: Int,
+    val endRow: Int,
+    val endCol: Int
+) {
+    val normalized: TerminalSelection
+        get() {
+            return if (startRow < endRow || (startRow == endRow && startCol <= endCol)) {
+                this
+            } else {
+                TerminalSelection(endRow, endCol, startRow, startCol)
+            }
+        }
+
+    val isEmpty: Boolean
+        get() = startRow == endRow && startCol == endCol
+}
+
 @Composable
 fun TerminalRenderer(
     bridge: TermuxTerminalBridge,
     modifier: Modifier = Modifier,
     onTap: (() -> Unit)? = null,
-    onResize: ((cols: Int, rows: Int) -> Unit)? = null
+    onResize: ((cols: Int, rows: Int) -> Unit)? = null,
+    onCopyText: ((String) -> Unit)? = null
 ) {
     val renderVersion by bridge.renderVersion.collectAsState()
     val textMeasurer = rememberTextMeasurer()
@@ -82,6 +111,9 @@ fun TerminalRenderer(
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var scrollOffset by remember(bridge) { mutableStateOf(0) }
     var scrollPixelAccumulator by remember(bridge) { mutableStateOf(0f) }
+    var selection by remember { mutableStateOf<TerminalSelection?>(null) }
+    val charHeightPx by rememberUpdatedState(charSize.height)
+    val charWidthPx by rememberUpdatedState(charSize.width)
 
     LaunchedEffect(canvasSize, charSize) {
         if (canvasSize.width > 0 && canvasSize.height > 0 && charSize.width > 0 && charSize.height > 0) {
@@ -100,51 +132,216 @@ fun TerminalRenderer(
         }
     }
 
-    Canvas(
+    @Suppress("UNUSED_EXPRESSION")
+    renderVersion
+
+    Box(
         modifier = modifier
             .focusable()
             .onSizeChanged { canvasSize = it }
-            .pointerInput(charSize.height) {
-                detectVerticalDragGestures(
-                    onDragEnd = { scrollPixelAccumulator = 0f },
-                    onDragCancel = { scrollPixelAccumulator = 0f }
-                ) { _, dragAmount ->
-                    scrollPixelAccumulator += dragAmount
-                    val rowDelta = (scrollPixelAccumulator / charSize.height).toInt()
-                    if (rowDelta != 0) {
-                        scrollPixelAccumulator -= rowDelta * charSize.height
-                        val maxScroll = bridge.screen.activeTranscriptRows
-                        scrollOffset = (scrollOffset - rowDelta).coerceIn(0, maxScroll)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val longPressTimeout = viewConfiguration.longPressTimeoutMillis
+                    val touchSlop = viewConfiguration.touchSlop
+                    val longPressAt = down.uptimeMillis + longPressTimeout
+                    val downPosition = down.position
+                    var pointerId = down.id
+                    var lastPosition = down.position
+                    var selectionMode = false
+                    var scrollMode = false
+                    var ended = false
+
+                    while (!ended) {
+                        val event = awaitPointerEvent()
+                        val primaryChange = event.changes.firstOrNull { it.id == pointerId }
+                            ?: event.changes.firstOrNull()
+                        if (primaryChange == null) {
+                            break
+                        }
+                        val change = primaryChange
+                        pointerId = change.id
+
+                        if (change.changedToUpIgnoreConsumed()) {
+                            ended = true
+                            break
+                        }
+
+                        if (!selectionMode && !scrollMode && change.uptimeMillis >= longPressAt) {
+                            val (bufferRow, col) = offsetToCell(
+                                offset = downPosition,
+                                charWidthPx = charWidthPx,
+                                charHeightPx = charHeightPx,
+                                scrollOffset = scrollOffset,
+                                cols = bridge.termCols,
+                                rows = bridge.termRows
+                            )
+                            selection = TerminalSelection(
+                                startRow = bufferRow,
+                                startCol = col,
+                                endRow = bufferRow,
+                                endCol = col
+                            )
+                            selectionMode = true
+                        }
+
+                        if (!selectionMode && !scrollMode) {
+                            val totalDelta = change.position - downPosition
+                            if (totalDelta.getDistance() > touchSlop) {
+                                scrollMode = true
+                            }
+                        }
+
+                        if (selectionMode) {
+                            val (bufferRow, col) = offsetToCell(
+                                offset = change.position,
+                                charWidthPx = charWidthPx,
+                                charHeightPx = charHeightPx,
+                                scrollOffset = scrollOffset,
+                                cols = bridge.termCols,
+                                rows = bridge.termRows
+                            )
+                            selection = selection?.copy(
+                                endRow = bufferRow,
+                                endCol = (col + 1).coerceAtMost(bridge.termCols)
+                            )
+                            change.consume()
+                        } else if (scrollMode) {
+                            val dragAmount = change.position.y - lastPosition.y
+                            if (charHeightPx > 0f) {
+                                scrollPixelAccumulator += dragAmount
+                                val rowDelta = (scrollPixelAccumulator / charHeightPx).toInt()
+                                if (rowDelta != 0) {
+                                    scrollPixelAccumulator -= rowDelta * charHeightPx
+                                    val maxScroll = bridge.screen.activeTranscriptRows
+                                    scrollOffset = (scrollOffset - rowDelta).coerceIn(0, maxScroll)
+                                }
+                            }
+                            change.consume()
+                        }
+
+                        lastPosition = change.position
+                    }
+
+                    if (scrollMode) {
+                        scrollPixelAccumulator = 0f
+                    }
+
+                    if (!selectionMode && !scrollMode && ended) {
+                        if (selection != null) {
+                            selection = null
+                        } else {
+                            onTap?.invoke()
+                        }
                     }
                 }
             }
-            .pointerInput(onTap) {
-                if (onTap != null) {
-                    detectTapGestures { onTap() }
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawRect(DEFAULT_BG, Offset.Zero, size)
+
+            bridge.withReadLock {
+                val screen = bridge.screen
+                val rows = bridge.termRows
+                val cols = bridge.termCols
+                val effectiveScroll = scrollOffset.coerceIn(0, screen.activeTranscriptRows)
+
+                for (screenRow in 0 until rows) {
+                    val bufferRow = screenRow - effectiveScroll
+                    drawTerminalRow(screen, bufferRow, screenRow, cols, charSize, textMeasurer)
+                }
+
+                val cursorScreenRow = bridge.cursorRow + effectiveScroll
+                if (cursorScreenRow in 0 until rows && bridge.emulator.shouldCursorBeVisible()) {
+                    val cx = bridge.cursorCol * charSize.width
+                    val cy = cursorScreenRow * charSize.height
+                    drawRect(CURSOR_COLOR, Offset(cx, cy), Size(charSize.width, charSize.height), alpha = 0.5f)
+                }
+
+                selection?.normalized?.let { sel ->
+                    for (screenRow in 0 until rows) {
+                        val bufferRow = screenRow - effectiveScroll
+                        if (bufferRow < sel.startRow || bufferRow > sel.endRow) continue
+
+                        val startCol = if (bufferRow == sel.startRow) sel.startCol else 0
+                        val endCol = if (bufferRow == sel.endRow) sel.endCol else cols
+                        if (endCol <= startCol) continue
+
+                        val x = startCol * charSize.width
+                        val w = (endCol - startCol) * charSize.width
+                        val y = screenRow * charSize.height
+                        drawRect(
+                            color = Color(0x5033B5E5),
+                            topLeft = Offset(x, y),
+                            size = Size(w, charSize.height)
+                        )
+                    }
                 }
             }
-    ) {
-        drawRect(DEFAULT_BG, Offset.Zero, size)
+        }
 
-        bridge.withReadLock {
-            val screen = bridge.screen
-            val rows = bridge.termRows
-            val cols = bridge.termCols
-            val effectiveScroll = scrollOffset.coerceIn(0, screen.activeTranscriptRows)
-
-            for (screenRow in 0 until rows) {
-                val bufferRow = screenRow - effectiveScroll
-                drawTerminalRow(screen, bufferRow, screenRow, cols, charSize, textMeasurer)
-            }
-
-            val cursorScreenRow = bridge.cursorRow + effectiveScroll
-            if (cursorScreenRow in 0 until rows && bridge.emulator.shouldCursorBeVisible()) {
-                val cx = bridge.cursorCol * charSize.width
-                val cy = cursorScreenRow * charSize.height
-                drawRect(CURSOR_COLOR, Offset(cx, cy), Size(charSize.width, charSize.height), alpha = 0.5f)
+        if (selection != null && selection?.isEmpty == false && onCopyText != null) {
+            Button(
+                onClick = {
+                    bridge.withReadLock {
+                        val text = extractSelectedText(bridge.screen, selection!!, bridge.termCols)
+                        if (text.isNotEmpty()) onCopyText(text)
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+            ) {
+                Text("Copy")
             }
         }
     }
+}
+
+private fun offsetToCell(
+    offset: Offset,
+    charWidthPx: Float,
+    charHeightPx: Float,
+    scrollOffset: Int,
+    cols: Int,
+    rows: Int
+): Pair<Int, Int> {
+    val safeCols = cols.coerceAtLeast(1)
+    val safeRows = rows.coerceAtLeast(1)
+    val safeCharWidth = charWidthPx.coerceAtLeast(1f)
+    val safeCharHeight = charHeightPx.coerceAtLeast(1f)
+    val screenRow = (offset.y / safeCharHeight).toInt().coerceIn(0, safeRows - 1)
+    val col = (offset.x / safeCharWidth).toInt().coerceIn(0, safeCols - 1)
+    val bufferRow = screenRow - scrollOffset
+    return Pair(bufferRow, col)
+}
+
+private fun extractSelectedText(screen: TerminalBuffer, selection: TerminalSelection, cols: Int): String {
+    val sel = selection.normalized
+    val safeCols = cols.coerceAtLeast(1)
+    val sb = StringBuilder()
+    for (row in sel.startRow..sel.endRow) {
+        val internalRow = screen.externalToInternalRow(row)
+        val termRow = screen.allocateFullLineIfNecessary(internalRow)
+        val colStart = if (row == sel.startRow) sel.startCol else 0
+        val colEnd = if (row == sel.endRow) sel.endCol else safeCols
+        var col = colStart
+        while (col < colEnd) {
+            val startOfCol = termRow.findStartOfColumn(col)
+            val codePoint = if (startOfCol >= 0 && startOfCol < termRow.spaceUsed) {
+                Character.codePointAt(termRow.mText, startOfCol)
+            } else {
+                ' '.code
+            }
+            if (codePoint in 0x20..0x10FFFF) {
+                sb.appendCodePoint(codePoint)
+            }
+            val width = if (codePoint > 0x7F) WcWidth.width(codePoint).coerceAtLeast(1) else 1
+            col += width
+        }
+        if (row < sel.endRow) sb.append('\n')
+    }
+    return sb.toString()
 }
 
 private fun DrawScope.drawTerminalRow(
