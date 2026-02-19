@@ -80,8 +80,8 @@ fun TerminalRenderer(
     }
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
-    var scrollOffset by remember { mutableStateOf(0) }
-    var scrollPixelAccumulator by remember { mutableStateOf(0f) }
+    var scrollOffset by remember(bridge) { mutableStateOf(0) }
+    var scrollPixelAccumulator by remember(bridge) { mutableStateOf(0f) }
 
     LaunchedEffect(canvasSize, charSize) {
         if (canvasSize.width > 0 && canvasSize.height > 0 && charSize.width > 0 && charSize.height > 0) {
