@@ -79,7 +79,7 @@ fun AppDrawer(
 
         NavigationDrawerItem(
             icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) },
-            label = { Text("Disconnect") },
+            label = { Text("Disconnect Tab") },
             selected = false,
             onClick = { close(onDisconnect) },
             modifier = Modifier.fillMaxWidth().padding(NavigationDrawerItemDefaults.ItemPadding)
