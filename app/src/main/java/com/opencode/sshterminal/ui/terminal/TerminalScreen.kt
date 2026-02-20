@@ -72,6 +72,8 @@ fun TerminalScreen(
     val scope = rememberCoroutineScope()
     var hadTabs by remember { mutableStateOf(false) }
     var showConnectionPicker by remember { mutableStateOf(false) }
+    var pageUpCount by remember { mutableStateOf(0) }
+    var pageDownCount by remember { mutableStateOf(0) }
 
     LaunchedEffect(tabs) {
         if (tabs.isNotEmpty()) hadTabs = true
@@ -177,6 +179,8 @@ fun TerminalScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
+                pageUpCount = pageUpCount,
+                pageDownCount = pageDownCount,
                 onTap = null,
                 onResize = { cols, rows -> viewModel.resize(cols, rows) },
                 onCopyText = { text ->
@@ -197,6 +201,9 @@ fun TerminalScreen(
             TerminalInputBar(
                 onSendBytes = { bytes -> viewModel.sendInput(bytes) },
                 onMenuClick = { scope.launch { drawerState.open() } },
+                onPageScroll = { direction ->
+                    if (direction > 0) pageUpCount++ else pageDownCount++
+                },
                 modifier = Modifier.fillMaxWidth()
             )
         }

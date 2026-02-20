@@ -93,6 +93,8 @@ data class TerminalSelection(
 fun TerminalRenderer(
     bridge: TermuxTerminalBridge,
     modifier: Modifier = Modifier,
+    pageUpCount: Int = 0,
+    pageDownCount: Int = 0,
     onTap: (() -> Unit)? = null,
     onResize: ((cols: Int, rows: Int) -> Unit)? = null,
     onCopyText: ((String) -> Unit)? = null
@@ -129,6 +131,20 @@ fun TerminalRenderer(
     LaunchedEffect(renderVersion) {
         if (scrollOffset == 0) {
             scrollPixelAccumulator = 0f
+        }
+    }
+
+    LaunchedEffect(pageUpCount) {
+        if (pageUpCount > 0) {
+            val pageRows = bridge.termRows.coerceAtLeast(1)
+            val maxScroll = bridge.screen.activeTranscriptRows
+            scrollOffset = (scrollOffset + pageRows).coerceIn(0, maxScroll)
+        }
+    }
+
+    LaunchedEffect(pageDownCount) {
+        if (pageDownCount > 0) {
+            scrollOffset = (scrollOffset - bridge.termRows.coerceAtLeast(1)).coerceAtLeast(0)
         }
     }
 
@@ -209,13 +225,13 @@ fun TerminalRenderer(
                         } else if (scrollMode) {
                             val dragAmount = change.position.y - lastPosition.y
                             if (charHeightPx > 0f) {
-                                scrollPixelAccumulator += dragAmount
-                                val rowDelta = (scrollPixelAccumulator / charHeightPx).toInt()
-                                if (rowDelta != 0) {
-                                    scrollPixelAccumulator -= rowDelta * charHeightPx
-                                    val maxScroll = bridge.screen.activeTranscriptRows
-                                    scrollOffset = (scrollOffset - rowDelta).coerceIn(0, maxScroll)
-                                }
+                                val maxScroll = bridge.screen.activeTranscriptRows
+                                val result = computeScrollUpdate(
+                                    dragAmount, scrollOffset,
+                                    scrollPixelAccumulator, charHeightPx, maxScroll
+                                )
+                                scrollOffset = result.newScrollOffset
+                                scrollPixelAccumulator = result.newPixelAccumulator
                             }
                             change.consume()
                         }
@@ -437,4 +453,39 @@ private fun color256(index: Int): Color {
     }
     val gray = 8 + (index - 232) * 10
     return Color(gray, gray, gray)
+}
+
+/**
+ * Pure scroll-offset calculation extracted from the gesture handler.
+ *
+ * Convention:
+ *  - scrollOffset 0 = live (bottom) view; >0 = scrolled back into history.
+ *  - Swipe UP   → dragAmount < 0 → rowDelta < 0 → (−rowDelta) > 0 → offset increases  (history).
+ *  - Swipe DOWN → dragAmount > 0 → rowDelta > 0 → (−rowDelta) < 0 → offset decreases (toward live).
+ */
+internal data class ScrollUpdate(
+    val newScrollOffset: Int,
+    val newPixelAccumulator: Float
+)
+
+internal fun computeScrollUpdate(
+    dragAmount: Float,
+    currentScrollOffset: Int,
+    pixelAccumulator: Float,
+    charHeightPx: Float,
+    maxScroll: Int
+): ScrollUpdate {
+    val newAccumulator = pixelAccumulator + dragAmount
+    val rowDelta = (newAccumulator / charHeightPx).toInt()
+    return if (rowDelta != 0) {
+        ScrollUpdate(
+            newScrollOffset = (currentScrollOffset - rowDelta).coerceIn(0, maxScroll),
+            newPixelAccumulator = newAccumulator - rowDelta * charHeightPx
+        )
+    } else {
+        ScrollUpdate(
+            newScrollOffset = currentScrollOffset,
+            newPixelAccumulator = newAccumulator
+        )
+    }
 }
