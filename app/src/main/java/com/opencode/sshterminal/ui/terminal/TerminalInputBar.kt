@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 fun TerminalInputBar(
     onSendBytes: (ByteArray) -> Unit,
     onMenuClick: (() -> Unit)? = null,
+    onPageScroll: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var textFieldValue by remember { mutableStateOf(TextFieldValue()) }
@@ -101,6 +102,8 @@ fun TerminalInputBar(
                 KeyChip("\u2193") { onSendBytes("\u001B[B".toByteArray(Charsets.UTF_8)) }
                 KeyChip("\u2190") { onSendBytes("\u001B[D".toByteArray(Charsets.UTF_8)) }
                 KeyChip("\u2192") { onSendBytes("\u001B[C".toByteArray(Charsets.UTF_8)) }
+                KeyChip("PgUp") { onPageScroll?.invoke(1) }
+                KeyChip("PgDn") { onPageScroll?.invoke(-1) }
                 KeyChip("\u232B") { onSendBytes(byteArrayOf(0x7F)) }
                 KeyChip("^C") { onSendBytes(byteArrayOf(0x03)) }
                 KeyChip("^D") { onSendBytes(byteArrayOf(0x04)) }
