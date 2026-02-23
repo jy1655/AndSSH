@@ -313,6 +313,12 @@ private fun ConnectionBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var draft by remember(initial) { mutableStateOf(initial.toDraft()) }
+    val privateKeyPicker =
+        rememberConnectionPrivateKeyPicker(
+            onImported = { importedPath ->
+                draft = draft.copy(privateKeyPath = importedPath)
+            },
+        )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -343,6 +349,8 @@ private fun ConnectionBottomSheet(
             ConnectionFormFields(
                 draft = draft,
                 onDraftChange = { draft = it },
+                onPickPrivateKey = privateKeyPicker,
+                onClearPrivateKey = { draft = draft.copy(privateKeyPath = "") },
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -371,6 +379,8 @@ private fun ConnectionBottomSheet(
 private fun ConnectionFormFields(
     draft: ConnectionDraft,
     onDraftChange: (ConnectionDraft) -> Unit,
+    onPickPrivateKey: () -> Unit,
+    onClearPrivateKey: () -> Unit,
 ) {
     OutlinedTextField(
         value = draft.name,
@@ -408,11 +418,9 @@ private fun ConnectionFormFields(
         visualTransformation = PasswordVisualTransformation(),
         modifier = Modifier.fillMaxWidth(),
     )
-    OutlinedTextField(
-        value = draft.privateKeyPath,
-        onValueChange = { onDraftChange(draft.copy(privateKeyPath = it)) },
-        label = { Text(stringResource(R.string.connection_label_private_key_path)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
+    ConnectionPrivateKeyField(
+        privateKeyPath = draft.privateKeyPath,
+        onPickPrivateKey = onPickPrivateKey,
+        onClearPrivateKey = onClearPrivateKey,
     )
 }

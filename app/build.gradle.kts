@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -8,6 +10,32 @@ plugins {
     id("io.gitlab.arturbosch.detekt")
 }
 
+val keystoreProperties =
+    Properties().apply {
+        val file = rootProject.file("keystore.properties")
+        if (file.exists()) {
+            file.inputStream().use(::load)
+        }
+    }
+
+fun releaseConfig(key: String, env: String): String? {
+    val fromProperties = keystoreProperties.getProperty(key)
+    val fromEnv = System.getenv(env)
+    return (fromProperties ?: fromEnv)?.takeIf { it.isNotBlank() }
+}
+
+val releaseStoreFile = releaseConfig("storeFile", "ANDROID_UPLOAD_STORE_FILE")
+val releaseStorePassword = releaseConfig("storePassword", "ANDROID_UPLOAD_STORE_PASSWORD")
+val releaseKeyAlias = releaseConfig("keyAlias", "ANDROID_UPLOAD_KEY_ALIAS")
+val releaseKeyPassword = releaseConfig("keyPassword", "ANDROID_UPLOAD_KEY_PASSWORD")
+val hasReleaseSigningConfig =
+    listOf(
+        releaseStoreFile,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword,
+    ).all { it != null }
+
 android {
     namespace = "com.opencode.sshterminal"
     compileSdk = 35
@@ -16,16 +44,30 @@ android {
         applicationId = "com.opencode.sshterminal"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigningConfig) {
+                storeFile = file(requireNotNull(releaseStoreFile))
+                storePassword = requireNotNull(releaseStorePassword)
+                keyAlias = requireNotNull(releaseKeyAlias)
+                keyPassword = requireNotNull(releaseKeyPassword)
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            if (hasReleaseSigningConfig) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -79,6 +121,14 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
         md.required.set(true)
         sarif.required.set(false)
         txt.required.set(false)
+    }
+}
+
+tasks.matching { it.name in setOf("bundleRelease", "assembleRelease", "packageRelease") }.configureEach {
+    doFirst {
+        check(hasReleaseSigningConfig) {
+            "Missing release signing config. Set keystore.properties or ANDROID_UPLOAD_* env vars."
+        }
     }
 }
 
