@@ -1,0 +1,116 @@
+package com.opencode.sshterminal.ui.connection
+
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import com.opencode.sshterminal.R
+import java.io.File
+import java.util.UUID
+
+@Composable
+internal fun rememberConnectionPrivateKeyPicker(onImported: (String) -> Unit): () -> Unit {
+    val context = LocalContext.current
+    val privateKeyPicker =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent(),
+        ) { uri: Uri? ->
+            if (uri != null) {
+                val importedPath = importPrivateKeyToInternalStorage(context, uri)
+                if (importedPath != null) {
+                    onImported(importedPath)
+                } else {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.connection_private_key_import_failed),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+        }
+    return { privateKeyPicker.launch("*/*") }
+}
+
+@Composable
+internal fun ConnectionPrivateKeyField(
+    privateKeyPath: String,
+    onPickPrivateKey: () -> Unit,
+    onClearPrivateKey: () -> Unit,
+) {
+    OutlinedTextField(
+        value = privateKeyPath,
+        onValueChange = {},
+        label = { Text(stringResource(R.string.connection_label_private_key_path)) },
+        placeholder = { Text(stringResource(R.string.connection_private_key_placeholder)) },
+        readOnly = true,
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        OutlinedButton(onClick = onPickPrivateKey) {
+            Text(stringResource(R.string.connection_pick_private_key))
+        }
+        if (privateKeyPath.isNotBlank()) {
+            TextButton(onClick = onClearPrivateKey) {
+                Text(stringResource(R.string.connection_clear_private_key))
+            }
+        }
+    }
+}
+
+private fun importPrivateKeyToInternalStorage(
+    context: Context,
+    uri: Uri,
+): String? {
+    return runCatching {
+        val fileName = sanitizeFileName(resolveDisplayName(context, uri) ?: "private_key")
+        val targetDir = File(context.filesDir, "private_keys").apply { mkdirs() }
+        val targetFile = File(targetDir, "${UUID.randomUUID()}_$fileName")
+        val source = context.contentResolver.openInputStream(uri) ?: return@runCatching null
+        source.use { input ->
+            targetFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        targetFile.absolutePath
+    }.getOrNull()
+}
+
+private fun resolveDisplayName(
+    context: Context,
+    uri: Uri,
+): String? =
+    context.contentResolver
+        .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+        ?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0) cursor.getString(index) else null
+            } else {
+                null
+            }
+        }
+
+private fun sanitizeFileName(name: String): String {
+    val sanitized = name.replace(Regex("[^A-Za-z0-9._-]"), "_")
+    return sanitized.ifBlank { "private_key" }
+}

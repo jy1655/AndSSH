@@ -73,6 +73,47 @@ export PATH="$JAVA_HOME/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 ./gradlew --no-daemon connectedDebugAndroidTest
 ```
 
+## Release build for Google Play
+
+1. Bump release version in `app/build.gradle.kts`:
+
+- `versionCode` must be higher than the previous Play release
+- `versionName` should match your release label
+
+2. Prepare upload signing config (do not commit secrets):
+
+```bash
+cp keystore.properties.example keystore.properties
+```
+
+Fill `keystore.properties`:
+
+```properties
+storeFile=/absolute/path/to/upload-keystore.jks
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+You can use env vars instead of file:
+
+- `ANDROID_UPLOAD_STORE_FILE`
+- `ANDROID_UPLOAD_STORE_PASSWORD`
+- `ANDROID_UPLOAD_KEY_ALIAS`
+- `ANDROID_UPLOAD_KEY_PASSWORD`
+
+3. Build AAB:
+
+```bash
+./gradlew --no-daemon :app:bundleRelease
+```
+
+Output:
+
+- `app/build/outputs/bundle/release/app-release.aab`
+
+4. Upload `app-release.aab` to Play Console (`Internal testing` or `Production` track).
+
 Output APK path:
 
 - `app/build/outputs/apk/debug/app-debug.apk`

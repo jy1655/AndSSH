@@ -33,6 +33,10 @@
     <string name="connection_label_username">Username</string>
     <string name="connection_label_password_optional">Password (Optional)</string>
     <string name="connection_label_private_key_path">Private Key Path</string>
+    <string name="connection_pick_private_key">내 파일</string>
+    <string name="connection_clear_private_key">선택 해제</string>
+    <string name="connection_private_key_placeholder">선택된 키 파일 없음</string>
+    <string name="connection_private_key_import_failed">개인 키 파일을 불러오지 못했습니다.</string>
 
     <string name="terminal_new_tab">New tab</string>
     <string name="terminal_close_active_tab">Close active tab</string>

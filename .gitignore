@@ -30,6 +30,7 @@ output-metadata.json
 # Keystore / signing
 *.jks
 *.keystore
+keystore.properties
 
 # Generated files
 app/release/
