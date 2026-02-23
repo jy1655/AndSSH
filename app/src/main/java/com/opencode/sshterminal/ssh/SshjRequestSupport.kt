@@ -1,9 +1,11 @@
 package com.opencode.sshterminal.ssh
 
 import com.opencode.sshterminal.session.ConnectRequest
+import com.hierynomus.sshj.common.KeyDecryptionFailedException
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.common.Buffer
 import net.schmizz.sshj.common.KeyType
+import net.schmizz.sshj.userauth.UserAuthException
 import java.io.File
 import java.security.PublicKey
 import java.util.Base64
@@ -18,10 +20,26 @@ internal fun SSHClient.authenticate(request: ConnectRequest) {
                 } else {
                     loadKeys(request.privateKeyPath, request.privateKeyPassphrase)
                 }
-            authPublickey(request.username, keyProvider)
+            try {
+                authPublickey(request.username, keyProvider)
+            } catch (authError: UserAuthException) {
+                if (authError.hasCause<KeyDecryptionFailedException>()) {
+                    error("Private key passphrase is required or incorrect")
+                }
+                throw authError
+            }
         }
         else -> error("Either password or privateKeyPath must be provided")
     }
+}
+
+private inline fun <reified T : Throwable> Throwable.hasCause(): Boolean {
+    var current: Throwable? = this
+    while (current != null) {
+        if (current is T) return true
+        current = current.cause
+    }
+    return false
 }
 
 internal fun ensureKnownHostsFile(path: String): File {

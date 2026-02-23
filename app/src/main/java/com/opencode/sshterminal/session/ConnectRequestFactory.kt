@@ -18,6 +18,7 @@ internal fun ConnectionProfile.toConnectRequest(
         knownHostsPath = File(context.filesDir, KNOWN_HOSTS_FILE_NAME).absolutePath,
         password = password,
         privateKeyPath = privateKeyPath,
+        privateKeyPassphrase = privateKeyPassphrase,
         cols = cols,
         rows = rows,
     )

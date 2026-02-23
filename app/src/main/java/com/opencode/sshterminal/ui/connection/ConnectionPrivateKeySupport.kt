@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.opencode.sshterminal.R
 import java.io.File
@@ -49,6 +50,8 @@ internal fun rememberConnectionPrivateKeyPicker(onImported: (String) -> Unit): (
 @Composable
 internal fun ConnectionPrivateKeyField(
     privateKeyPath: String,
+    privateKeyPassphrase: String,
+    onPrivateKeyPassphraseChange: (String) -> Unit,
     onPickPrivateKey: () -> Unit,
     onClearPrivateKey: () -> Unit,
 ) {
@@ -75,6 +78,14 @@ internal fun ConnectionPrivateKeyField(
             }
         }
     }
+    OutlinedTextField(
+        value = privateKeyPassphrase,
+        onValueChange = onPrivateKeyPassphraseChange,
+        label = { Text(stringResource(R.string.connection_label_private_key_passphrase_optional)) },
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 private fun importPrivateKeyToInternalStorage(
