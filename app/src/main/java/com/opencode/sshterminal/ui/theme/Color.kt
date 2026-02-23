@@ -29,3 +29,15 @@ val StatusConnecting = Color(0xFFFFAB00)
 
 // Error
 val ErrorRed = Color(0xFFCF6679)
+
+// Theme preset accents - Ocean Blue
+val OceanBlue = Color(0xFF42A5F5)
+val OceanBlueDark = Color(0xFF1E88E5)
+
+// Theme preset accents - Sunset Orange
+val SunsetOrange = Color(0xFFFF7043)
+val SunsetOrangeDark = Color(0xFFE64A19)
+
+// Theme preset accents - Classic Purple
+val ClassicPurple = Color(0xFFAB47BC)
+val ClassicPurpleDark = Color(0xFF8E24AA)

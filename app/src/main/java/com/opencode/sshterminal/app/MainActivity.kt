@@ -4,18 +4,26 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
+import com.opencode.sshterminal.data.SettingsRepository
 import com.opencode.sshterminal.navigation.SSHNavHost
 import com.opencode.sshterminal.ui.theme.AppTheme
+import com.opencode.sshterminal.ui.theme.ThemePreset
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
     private val notificationPermissionLauncher =
         registerForActivityResult(
             ActivityResultContracts.RequestPermission(),
@@ -27,7 +35,10 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermissionIfNeeded()
 
         setContent {
-            AppTheme {
+            val themePresetId by settingsRepository.themePresetId.collectAsState(
+                initial = SettingsRepository.DEFAULT_THEME_PRESET,
+            )
+            AppTheme(themePreset = ThemePreset.fromId(themePresetId)) {
                 val navController = rememberNavController()
                 SSHNavHost(navController = navController)
             }

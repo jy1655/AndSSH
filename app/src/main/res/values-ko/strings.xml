@@ -1,0 +1,107 @@
+<resources>
+    <string name="app_name">SSH 터미널</string>
+    <string name="common_cancel">취소</string>
+    <string name="common_delete">삭제</string>
+    <string name="common_save">저장</string>
+
+    <string name="fgs_channel_name">SSH 세션</string>
+    <string name="fgs_notification_title">SSH 세션 실행 중</string>
+    <string name="fgs_notification_body">터미널로 돌아가려면 탭하세요</string>
+
+    <string name="bell_channel_name">터미널 벨</string>
+    <string name="bell_channel_description">터미널 벨(BEL)에 의해 트리거된 알림</string>
+    <string name="bell_notification_title">터미널 벨</string>
+    <string name="bell_notification_body">%1$s에서 벨 수신</string>
+
+    <string name="drawer_terminal">터미널</string>
+    <string name="drawer_sftp_browser">SFTP 탐색기</string>
+    <string name="drawer_disconnect_tab">탭 연결 해제</string>
+
+    <string name="connection_list_title">SSH 연결</string>
+    <string name="connection_add">연결 추가</string>
+    <string name="connection_no_saved_title">저장된 연결 없음</string>
+    <string name="connection_no_saved_subtitle">+를 눌러 새 SSH 연결을 추가하세요</string>
+    <string name="connection_delete_title">연결 삭제</string>
+    <string name="connection_delete_message">"%1$s"을(를) 삭제할까요? 되돌릴 수 없습니다.</string>
+    <string name="connection_edit">편집</string>
+    <string name="connection_delete">삭제</string>
+    <string name="connection_sheet_edit_title">연결 편집</string>
+    <string name="connection_sheet_new_title">새 연결</string>
+    <string name="connection_label_name">이름</string>
+    <string name="connection_label_host">호스트</string>
+    <string name="connection_label_port">포트</string>
+    <string name="connection_label_username">사용자명</string>
+    <string name="connection_label_password_optional">비밀번호 (선택)</string>
+    <string name="connection_label_private_key_path">개인 키 경로</string>
+    <string name="connection_label_private_key_passphrase_optional">개인 키 암호 (선택)</string>
+    <string name="connection_pick_private_key">내 파일</string>
+    <string name="connection_clear_private_key">선택 해제</string>
+    <string name="connection_private_key_placeholder">선택된 키 파일 없음</string>
+    <string name="connection_private_key_import_failed">개인 키 파일을 불러오지 못했습니다.</string>
+    <string name="connection_settings">설정</string>
+
+    <string name="terminal_new_tab">새 탭</string>
+    <string name="terminal_close_active_tab">활성 탭 닫기</string>
+    <string name="terminal_disconnect">연결 해제</string>
+    <string name="terminal_clipboard_label">터미널</string>
+    <string name="terminal_error_format">오류: %1$s</string>
+    <string name="terminal_select_connection">연결 선택</string>
+    <string name="terminal_copy">복사</string>
+    <string name="terminal_tab_status_idle">대기</string>
+    <string name="terminal_tab_status_connecting">연결 중</string>
+    <string name="terminal_tab_status_connected">연결됨</string>
+    <string name="terminal_tab_status_reconnecting">재연결 중</string>
+    <string name="terminal_tab_status_disconnected">연결 끊김</string>
+    <string name="terminal_tab_status_failed">실패</string>
+    <string name="terminal_host_key_changed">호스트 키 변경됨</string>
+    <string name="terminal_host_key_message">호스트: %1$s:%2$d&#10;지문: %3$s</string>
+    <string name="terminal_reject">거부</string>
+    <string name="terminal_trust_once">한 번만 신뢰</string>
+    <string name="terminal_update_known_hosts">known_hosts 업데이트</string>
+
+    <string name="sftp_browser_title">SFTP 탐색기</string>
+    <string name="sftp_back">뒤로</string>
+    <string name="sftp_upload">업로드</string>
+    <string name="sftp_new_folder">새 폴더</string>
+    <string name="sftp_open">열기</string>
+    <string name="sftp_download">다운로드</string>
+    <string name="sftp_rename">이름 변경</string>
+    <string name="sftp_delete">삭제</string>
+    <string name="sftp_folder_name_placeholder">폴더 이름</string>
+    <string name="sftp_create">생성</string>
+    <string name="sftp_new_name_placeholder">새 이름</string>
+    <string name="sftp_delete_entry_message">"%1$s"을(를) 삭제할까요?</string>
+    <string name="sftp_download_icon_description">다운로드</string>
+
+    <string name="sftp_status_connecting">연결 중…</string>
+    <string name="sftp_status_downloading">다운로드 중…</string>
+    <string name="sftp_status_uploading">업로드 중…</string>
+    <string name="sftp_status_connection_failed">연결 실패: %1$s</string>
+    <string name="sftp_status_items">%1$d개 항목</string>
+    <string name="sftp_status_list_failed">목록 조회 실패: %1$s</string>
+    <string name="sftp_status_downloaded_to">%1$s에 다운로드 완료</string>
+    <string name="sftp_status_download_failed">다운로드 실패: %1$s</string>
+    <string name="sftp_status_download_complete">다운로드 완료</string>
+    <string name="sftp_status_invalid_remote_name">잘못된 원격 이름</string>
+    <string name="sftp_status_upload_complete">업로드 완료</string>
+    <string name="sftp_status_upload_failed">업로드 실패: %1$s</string>
+    <string name="sftp_status_invalid_directory_name">잘못된 디렉터리 이름</string>
+    <string name="sftp_status_mkdir_failed">디렉터리 생성 실패: %1$s</string>
+    <string name="sftp_status_delete_failed">삭제 실패: %1$s</string>
+    <string name="sftp_status_invalid_new_name">잘못된 새 이름</string>
+    <string name="sftp_status_rename_failed">이름 변경 실패: %1$s</string>
+
+    <!-- Settings -->
+    <string name="settings_title">설정</string>
+    <string name="settings_language_title">언어</string>
+    <string name="settings_language_system">시스템 기본</string>
+    <string name="settings_language_english">영어</string>
+    <string name="settings_language_korean">한국어</string>
+    <string name="settings_theme_title">테마</string>
+    <string name="settings_theme_green">터미널 그린</string>
+    <string name="settings_theme_ocean">오션 블루</string>
+    <string name="settings_theme_sunset">선셋 오렌지</string>
+    <string name="settings_theme_purple">클래식 퍼플</string>
+    <string name="settings_about_title">정보</string>
+    <string name="settings_about_version">버전 %1$s (%2$d)</string>
+</resources>

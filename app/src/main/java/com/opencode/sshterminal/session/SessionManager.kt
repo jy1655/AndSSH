@@ -234,5 +234,4 @@ class SessionManager
                     tab.snapshotFlow.value.state == SessionState.CONNECTED
                 }
         }
-
     }

@@ -1,7 +1,7 @@
 package com.opencode.sshterminal.ssh
 
-import com.opencode.sshterminal.session.ConnectRequest
 import com.hierynomus.sshj.common.KeyDecryptionFailedException
+import com.opencode.sshterminal.session.ConnectRequest
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.common.Buffer
 import net.schmizz.sshj.common.KeyType
