@@ -20,10 +20,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
@@ -36,6 +41,7 @@ fun TerminalInputBar(
     onSendBytes: (ByteArray) -> Unit,
     onMenuClick: (() -> Unit)? = null,
     onPageScroll: ((Int) -> Unit)? = null,
+    focusSignal: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     val controller = rememberTerminalInputController(onSendBytes)
@@ -70,6 +76,7 @@ fun TerminalInputBar(
                 actions = shortcutActions,
             )
             TerminalTextInputRow(
+                focusSignal = focusSignal,
                 textFieldValue = controller.textFieldValue,
                 onValueChange = controller::onTextFieldValueChange,
                 onSubmit = controller::submitInput,
@@ -125,10 +132,21 @@ private fun TerminalShortcutRow(
 
 @Composable
 private fun TerminalTextInputRow(
+    focusSignal: Int,
     textFieldValue: TextFieldValue,
     onValueChange: (TextFieldValue) -> Unit,
     onSubmit: () -> Unit,
 ) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(focusSignal) {
+        if (focusSignal > 0) {
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -141,6 +159,7 @@ private fun TerminalTextInputRow(
                 Modifier
                     .weight(1f)
                     .height(34.dp)
+                    .focusRequester(focusRequester)
                     .clip(RoundedCornerShape(6.dp))
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(horizontal = 8.dp, vertical = 6.dp),
