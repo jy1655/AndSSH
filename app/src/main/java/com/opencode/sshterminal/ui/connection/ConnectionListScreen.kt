@@ -278,6 +278,7 @@ private data class ConnectionDraft(
     val username: String = "",
     val password: String = "",
     val privateKeyPath: String = "",
+    val privateKeyPassphrase: String = "",
 )
 
 private fun ConnectionProfile?.toDraft(): ConnectionDraft =
@@ -288,6 +289,7 @@ private fun ConnectionProfile?.toDraft(): ConnectionDraft =
         username = this?.username.orEmpty(),
         password = this?.password.orEmpty(),
         privateKeyPath = this?.privateKeyPath.orEmpty(),
+        privateKeyPassphrase = this?.privateKeyPassphrase.orEmpty(),
     )
 
 private fun ConnectionDraft.toProfileOrNull(initial: ConnectionProfile?): ConnectionProfile? {
@@ -300,6 +302,7 @@ private fun ConnectionDraft.toProfileOrNull(initial: ConnectionProfile?): Connec
         username = username,
         password = password.ifBlank { null },
         privateKeyPath = privateKeyPath.ifBlank { null },
+        privateKeyPassphrase = privateKeyPassphrase.ifBlank { null },
         lastUsedEpochMillis = initial?.lastUsedEpochMillis ?: System.currentTimeMillis(),
     )
 }
@@ -350,7 +353,7 @@ private fun ConnectionBottomSheet(
                 draft = draft,
                 onDraftChange = { draft = it },
                 onPickPrivateKey = privateKeyPicker,
-                onClearPrivateKey = { draft = draft.copy(privateKeyPath = "") },
+                onClearPrivateKey = { draft = draft.copy(privateKeyPath = "", privateKeyPassphrase = "") },
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -420,6 +423,8 @@ private fun ConnectionFormFields(
     )
     ConnectionPrivateKeyField(
         privateKeyPath = draft.privateKeyPath,
+        privateKeyPassphrase = draft.privateKeyPassphrase,
+        onPrivateKeyPassphraseChange = { onDraftChange(draft.copy(privateKeyPassphrase = it)) },
         onPickPrivateKey = onPickPrivateKey,
         onClearPrivateKey = onClearPrivateKey,
     )

@@ -33,6 +33,7 @@
     <string name="connection_label_username">Username</string>
     <string name="connection_label_password_optional">Password (Optional)</string>
     <string name="connection_label_private_key_path">Private Key Path</string>
+    <string name="connection_label_private_key_passphrase_optional">Private Key Passphrase (Optional)</string>
     <string name="connection_pick_private_key">내 파일</string>
     <string name="connection_clear_private_key">선택 해제</string>
     <string name="connection_private_key_placeholder">선택된 키 파일 없음</string>
