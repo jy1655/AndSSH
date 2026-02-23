@@ -212,6 +212,8 @@ private fun TerminalMainColumn(
     scrollCounters: TerminalScrollCounters,
     callbacks: TerminalMainCallbacks,
 ) {
+    var imeFocusSignal by remember { mutableStateOf(0) }
+
     Column(
         modifier =
             Modifier
@@ -243,6 +245,7 @@ private fun TerminalMainColumn(
             scrollCounters = scrollCounters,
             callbacks =
                 TerminalRendererCallbacks(
+                    onTap = { imeFocusSignal++ },
                     onResize = { cols, rows -> viewModel.resize(cols, rows) },
                     onCopyText = callbacks.onCopyText,
                 ),
@@ -260,6 +263,7 @@ private fun TerminalMainColumn(
             onSendBytes = viewModel::sendInput,
             onMenuClick = callbacks.onOpenDrawer,
             onPageScroll = callbacks.onPageScroll,
+            focusSignal = imeFocusSignal,
             modifier = Modifier.fillMaxWidth(),
         )
     }
