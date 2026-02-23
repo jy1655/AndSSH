@@ -10,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.opencode.sshterminal.ui.connection.ConnectionListScreen
+import com.opencode.sshterminal.ui.settings.SettingsScreen
 import com.opencode.sshterminal.ui.sftp.SftpBrowserScreen
 import com.opencode.sshterminal.ui.terminal.TerminalScreen
 import com.opencode.sshterminal.ui.terminal.TerminalViewModel
@@ -31,6 +32,11 @@ fun SSHNavHost(
                         ?.savedStateHandle
                         ?.set("pendingConnectionId", connectionId)
                     navController.navigate(Routes.TERMINAL) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenSettings = {
+                    navController.navigate(Routes.SETTINGS) {
                         launchSingleTop = true
                     }
                 },
@@ -66,6 +72,12 @@ fun SSHNavHost(
             arguments = listOf(navArgument("connectionId") { type = NavType.StringType }),
         ) {
             SftpBrowserScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
                 onBack = { navController.popBackStack() },
             )
         }

@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
@@ -50,7 +49,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.opencode.sshterminal.R
@@ -227,14 +225,12 @@ private fun TerminalMainColumn(
                 TerminalTabBarModel(
                     tabs = model.tabs,
                     activeTabId = model.activeTabId,
-                    activeState = model.activeSnapshot?.state,
                 ),
             callbacks =
                 TerminalTabBarCallbacks(
                     onSwitchTab = viewModel::switchTab,
                     onShowNewTab = callbacks.onShowConnectionPicker,
                     onCloseActiveTab = { model.activeTabId?.let(viewModel::closeTab) },
-                    onDisconnect = viewModel::disconnectActiveTab,
                 ),
         )
 
@@ -308,10 +304,8 @@ private fun TerminalTabBar(
         )
         TerminalTabButtons(
             activeTabId = model.activeTabId,
-            activeState = model.activeState,
             onShowNewTab = callbacks.onShowNewTab,
             onCloseActiveTab = callbacks.onCloseActiveTab,
-            onDisconnect = callbacks.onDisconnect,
         )
     }
 }
@@ -336,22 +330,7 @@ private fun RowScope.TerminalTabStrip(
                     selected = tabInfo.tabId == activeTabId,
                     onClick = { onSwitchTab(tabInfo.tabId) },
                 ) {
-                    Text(
-                        text = tabInfo.title,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.labelMedium,
-                        color =
-                            when (tabInfo.state) {
-                                SessionState.DISCONNECTED -> MaterialTheme.colorScheme.onSurfaceVariant
-                                SessionState.FAILED -> MaterialTheme.colorScheme.error
-                                else -> MaterialTheme.colorScheme.onSurface
-                            },
-                        modifier =
-                            Modifier
-                                .padding(horizontal = 12.dp)
-                                .height(36.dp),
-                    )
+                    TerminalTabLabel(tabInfo = tabInfo)
                 }
             }
         }
@@ -363,10 +342,8 @@ private fun RowScope.TerminalTabStrip(
 @Composable
 private fun TerminalTabButtons(
     activeTabId: TabId?,
-    activeState: SessionState?,
     onShowNewTab: () -> Unit,
     onCloseActiveTab: () -> Unit,
-    onDisconnect: () -> Unit,
 ) {
     IconButton(onClick = onShowNewTab) {
         Icon(
@@ -385,29 +362,17 @@ private fun TerminalTabButtons(
             )
         }
     }
-
-    if (activeState == SessionState.CONNECTED) {
-        IconButton(onClick = onDisconnect) {
-            Icon(
-                Icons.AutoMirrored.Filled.ExitToApp,
-                contentDescription = stringResource(R.string.terminal_disconnect),
-                tint = MaterialTheme.colorScheme.error,
-            )
-        }
-    }
 }
 
 private data class TerminalTabBarModel(
     val tabs: List<TabInfo>,
     val activeTabId: TabId?,
-    val activeState: SessionState?,
 )
 
 private data class TerminalTabBarCallbacks(
     val onSwitchTab: (TabId) -> Unit,
     val onShowNewTab: () -> Unit,
     val onCloseActiveTab: () -> Unit,
-    val onDisconnect: () -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -18,7 +18,10 @@ val keystoreProperties =
         }
     }
 
-fun releaseConfig(key: String, env: String): String? {
+fun releaseConfig(
+    key: String,
+    env: String,
+): String? {
     val fromProperties = keystoreProperties.getProperty(key)
     val fromEnv = System.getenv(env)
     return (fromProperties ?: fromEnv)?.takeIf { it.isNotBlank() }
@@ -86,6 +89,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -135,6 +139,7 @@ tasks.matching { it.name in setOf("bundleRelease", "assembleRelease", "packageRe
 dependencies {
     // Core
     implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.activity:activity-compose:1.9.1")
@@ -180,6 +185,7 @@ dependencies {
 
     // Test
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     androidTestImplementation("androidx.test:runner:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")

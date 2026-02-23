@@ -1,16 +1,20 @@
 package com.opencode.sshterminal.ui.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
-private val DarkColorScheme =
+private fun buildScheme(
+    primary: androidx.compose.ui.graphics.Color,
+    primaryDark: androidx.compose.ui.graphics.Color,
+): ColorScheme =
     darkColorScheme(
-        primary = TerminalGreen,
+        primary = primary,
         onPrimary = SurfaceBlack,
-        primaryContainer = TerminalGreenDark,
+        primaryContainer = primaryDark,
         onPrimaryContainer = TextPrimary,
-        secondary = TerminalGreen,
+        secondary = primary,
         onSecondary = SurfaceBlack,
         background = SurfaceBlack,
         onBackground = TextPrimary,
@@ -23,10 +27,26 @@ private val DarkColorScheme =
         onError = SurfaceBlack,
     )
 
+private val GreenScheme = buildScheme(TerminalGreen, TerminalGreenDark)
+private val OceanScheme = buildScheme(OceanBlue, OceanBlueDark)
+private val SunsetScheme = buildScheme(SunsetOrange, SunsetOrangeDark)
+private val PurpleScheme = buildScheme(ClassicPurple, ClassicPurpleDark)
+
+fun colorSchemeFor(preset: ThemePreset): ColorScheme =
+    when (preset) {
+        ThemePreset.GREEN -> GreenScheme
+        ThemePreset.OCEAN -> OceanScheme
+        ThemePreset.SUNSET -> SunsetScheme
+        ThemePreset.PURPLE -> PurpleScheme
+    }
+
 @Composable
-fun AppTheme(content: @Composable () -> Unit) {
+fun AppTheme(
+    themePreset: ThemePreset = ThemePreset.GREEN,
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
-        colorScheme = DarkColorScheme,
+        colorScheme = colorSchemeFor(themePreset),
         typography = AppTypography,
         content = content,
     )
