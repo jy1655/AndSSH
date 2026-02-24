@@ -10,6 +10,7 @@ data class ConnectionIdentity(
     val username: String,
     val password: String? = null,
     val privateKeyPath: String? = null,
+    val certificatePath: String? = null,
     val privateKeyPassphrase: String? = null,
     val lastUsedEpochMillis: Long = 0L,
 )

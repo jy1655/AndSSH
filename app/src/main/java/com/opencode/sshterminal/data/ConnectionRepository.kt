@@ -79,17 +79,20 @@ class ConnectionRepository
             return decodeIdentity(raw)
         }
 
+        @Suppress("LongParameterList", "ReturnCount")
         suspend fun upsertIdentity(
             existingIdentityId: String?,
             displayName: String,
             username: String,
             password: String?,
             privateKeyPath: String?,
+            certificatePath: String?,
             privateKeyPassphrase: String?,
         ): ConnectionIdentity {
             val normalizedName = displayName.ifBlank { "$username credentials" }
             val normalizedPassword = password.normalizedOptional()
             val normalizedPrivateKeyPath = privateKeyPath.normalizedOptional()
+            val normalizedCertificatePath = certificatePath.normalizedOptional()
             val normalizedPrivateKeyPassphrase = privateKeyPassphrase.normalizedOptional()
             val now = System.currentTimeMillis()
 
@@ -102,6 +105,7 @@ class ConnectionRepository
                             username = username,
                             password = normalizedPassword,
                             privateKeyPath = normalizedPrivateKeyPath,
+                            certificatePath = normalizedCertificatePath,
                             privateKeyPassphrase = normalizedPrivateKeyPassphrase,
                             lastUsedEpochMillis = now,
                         )
@@ -115,6 +119,7 @@ class ConnectionRepository
                     identity.username == username &&
                         identity.password == normalizedPassword &&
                         identity.privateKeyPath == normalizedPrivateKeyPath &&
+                        identity.certificatePath == normalizedCertificatePath &&
                         identity.privateKeyPassphrase == normalizedPrivateKeyPassphrase
                 }
             if (existingByAuth != null) {
@@ -129,6 +134,7 @@ class ConnectionRepository
                     username = username,
                     password = normalizedPassword,
                     privateKeyPath = normalizedPrivateKeyPath,
+                    certificatePath = normalizedCertificatePath,
                     privateKeyPassphrase = normalizedPrivateKeyPassphrase,
                     lastUsedEpochMillis = now,
                 )

@@ -265,6 +265,7 @@ class TerminalViewModel
                         username = identity.username,
                         password = identity.password,
                         privateKeyPath = identity.privateKeyPath,
+                        certificatePath = identity.certificatePath,
                         privateKeyPassphrase = identity.privateKeyPassphrase,
                     )
             }.toMap()

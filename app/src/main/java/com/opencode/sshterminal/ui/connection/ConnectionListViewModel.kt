@@ -60,6 +60,7 @@ class ConnectionListViewModel
                         username = profile.username,
                         password = profile.password,
                         privateKeyPath = profile.privateKeyPath,
+                        certificatePath = profile.certificatePath,
                         privateKeyPassphrase = profile.privateKeyPassphrase,
                     )
                 repository.save(
@@ -68,6 +69,7 @@ class ConnectionListViewModel
                         username = identity.username,
                         password = identity.password,
                         privateKeyPath = identity.privateKeyPath,
+                        certificatePath = identity.certificatePath,
                         privateKeyPassphrase = identity.privateKeyPassphrase,
                     ),
                 )
@@ -88,6 +90,7 @@ class ConnectionListViewModel
                         username = input.username,
                         password = input.password,
                         privateKeyPath = null,
+                        certificatePath = null,
                         privateKeyPassphrase = null,
                     )
                 val profile =
@@ -100,6 +103,7 @@ class ConnectionListViewModel
                         username = identity.username,
                         password = identity.password,
                         privateKeyPath = identity.privateKeyPath,
+                        certificatePath = identity.certificatePath,
                         privateKeyPassphrase = identity.privateKeyPassphrase,
                         identityId = identity.id,
                         lastUsedEpochMillis = System.currentTimeMillis(),
@@ -131,6 +135,7 @@ class ConnectionListViewModel
                             username = importedHost.user,
                             password = null,
                             privateKeyPath = importedHost.identityFile,
+                            certificatePath = importedHost.certificateFile,
                             privateKeyPassphrase = null,
                         )
                     val profile =
@@ -142,6 +147,7 @@ class ConnectionListViewModel
                             username = identity.username,
                             password = identity.password,
                             privateKeyPath = identity.privateKeyPath,
+                            certificatePath = identity.certificatePath,
                             privateKeyPassphrase = identity.privateKeyPassphrase,
                             identityId = identity.id,
                             forwardAgent = importedHost.forwardAgent,

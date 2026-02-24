@@ -168,6 +168,7 @@ class SshjClient : SshClient {
             username = credential.username.ifBlank { jumpTarget.username },
             password = credential.password,
             privateKeyPath = credential.privateKeyPath,
+            certificatePath = credential.certificatePath,
             privateKeyPassphrase = credential.privateKeyPassphrase,
         )
     }

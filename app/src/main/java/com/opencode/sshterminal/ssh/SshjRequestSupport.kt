@@ -6,6 +6,8 @@ import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.common.Buffer
 import net.schmizz.sshj.common.KeyType
 import net.schmizz.sshj.userauth.UserAuthException
+import net.schmizz.sshj.userauth.password.PasswordFinder
+import net.schmizz.sshj.userauth.password.PasswordUtils
 import java.io.File
 import java.security.PublicKey
 import java.util.Base64
@@ -14,12 +16,7 @@ internal fun SSHClient.authenticate(request: ConnectRequest) {
     when {
         !request.password.isNullOrEmpty() -> authPassword(request.username, request.password)
         !request.privateKeyPath.isNullOrEmpty() -> {
-            val keyProvider =
-                if (request.privateKeyPassphrase.isNullOrEmpty()) {
-                    loadKeys(request.privateKeyPath)
-                } else {
-                    loadKeys(request.privateKeyPath, request.privateKeyPassphrase)
-                }
+            val keyProvider = loadKeyProviderForAuth(request)
             try {
                 authPublickey(request.username, keyProvider)
             } catch (authError: UserAuthException) {
@@ -32,6 +29,42 @@ internal fun SSHClient.authenticate(request: ConnectRequest) {
         else -> error("Either password or privateKeyPath must be provided")
     }
 }
+
+private fun SSHClient.loadKeyProviderForAuth(request: ConnectRequest) =
+    with(request) {
+        val privateKeyPath = requireNotNull(privateKeyPath)
+        val certificatePath = certificatePath
+        when {
+            certificatePath.isNullOrEmpty() -> {
+                if (privateKeyPassphrase.isNullOrEmpty()) {
+                    loadKeys(privateKeyPath)
+                } else {
+                    loadKeys(privateKeyPath, privateKeyPassphrase)
+                }
+            }
+
+            privateKeyPassphrase.isNullOrEmpty() -> {
+                loadKeys(
+                    privateKeyPath,
+                    certificatePath,
+                    null as PasswordFinder?,
+                )
+            }
+
+            else -> {
+                val passphrase = privateKeyPassphrase.toCharArray()
+                try {
+                    loadKeys(
+                        privateKeyPath,
+                        certificatePath,
+                        PasswordUtils.createOneOff(passphrase),
+                    )
+                } finally {
+                    passphrase.fill('\u0000')
+                }
+            }
+        }
+    }
 
 private inline fun <reified T : Throwable> Throwable.hasCause(): Boolean {
     var current: Throwable? = this

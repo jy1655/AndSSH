@@ -6,6 +6,7 @@ internal data class SshConfigImportHost(
     val port: Int,
     val user: String,
     val identityFile: String?,
+    val certificateFile: String?,
     val forwardAgent: Boolean,
     val proxyJump: String?,
     val portForwards: List<PortForwardRule>,
@@ -47,6 +48,7 @@ internal fun parseSshConfig(content: String): SshConfigImportParseResult {
                             user = globalDefaults.user,
                             port = globalDefaults.port,
                             identityFile = globalDefaults.identityFile,
+                            certificateFile = globalDefaults.certificateFile,
                             forwardAgent = globalDefaults.forwardAgent,
                             proxyJump = globalDefaults.proxyJump,
                             portForwards = globalDefaults.portForwards.toMutableList(),
@@ -80,6 +82,7 @@ internal fun parseSshConfig(content: String): SshConfigImportParseResult {
                 port = host.port ?: DEFAULT_SSH_PORT,
                 user = user,
                 identityFile = host.identityFile,
+                certificateFile = host.certificateFile,
                 forwardAgent = host.forwardAgent,
                 proxyJump = host.proxyJump,
                 portForwards = host.portForwards.toList(),
@@ -103,6 +106,7 @@ private fun applyOption(
         "user" -> host.user = value
         "port" -> host.port = value.toIntOrNull() ?: host.port
         "identityfile" -> host.identityFile = value
+        "certificatefile" -> host.certificateFile = value
         "forwardagent" -> parseSshBoolean(value)?.let { host.forwardAgent = it }
         "proxyjump" -> host.proxyJump = value
         "localforward" -> parseLocalOrRemoteForward(value, PortForwardType.LOCAL)?.let(host.portForwards::add)
@@ -206,6 +210,7 @@ private data class MutableSshHost(
     var user: String? = null,
     var port: Int? = null,
     var identityFile: String? = null,
+    var certificateFile: String? = null,
     var forwardAgent: Boolean = false,
     var proxyJump: String? = null,
     val portForwards: MutableList<PortForwardRule> = mutableListOf(),

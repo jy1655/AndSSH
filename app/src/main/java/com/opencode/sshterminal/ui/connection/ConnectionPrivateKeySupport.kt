@@ -63,6 +63,29 @@ internal fun rememberConnectionPrivateKeyPicker(onImported: (String) -> Unit): (
 }
 
 @Composable
+internal fun rememberConnectionCertificatePicker(onImported: (String) -> Unit): () -> Unit {
+    val context = LocalContext.current
+    val certificatePicker =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent(),
+        ) { uri: Uri? ->
+            if (uri != null) {
+                val importedPath = importPrivateKeyToInternalStorage(context, uri)
+                if (importedPath != null) {
+                    onImported(importedPath)
+                } else {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.connection_certificate_import_failed),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+        }
+    return { certificatePicker.launch("*/*") }
+}
+
+@Composable
 internal fun rememberConnectionPrivateKeyGenerator(onGenerated: (String) -> Unit): (SshKeyAlgorithm) -> Unit {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -112,12 +135,16 @@ internal fun rememberConnectionSshConfigPicker(
 }
 
 @Composable
+@Suppress("LongMethod", "LongParameterList")
 internal fun ConnectionPrivateKeyField(
     privateKeyPath: String,
+    certificatePath: String,
     privateKeyPassphrase: String,
     onPrivateKeyPassphraseChange: (String) -> Unit,
     onPickPrivateKey: () -> Unit,
+    onPickCertificate: () -> Unit,
     onClearPrivateKey: () -> Unit,
+    onClearCertificate: () -> Unit,
     onGeneratePrivateKey: (SshKeyAlgorithm) -> Unit,
 ) {
     var showGenerateDialog by remember { mutableStateOf(false) }
@@ -146,6 +173,29 @@ internal fun ConnectionPrivateKeyField(
         if (privateKeyPath.isNotBlank()) {
             TextButton(onClick = onClearPrivateKey) {
                 Text(stringResource(R.string.connection_clear_private_key))
+            }
+        }
+    }
+    OutlinedTextField(
+        value = certificatePath,
+        onValueChange = {},
+        label = { Text(stringResource(R.string.connection_label_certificate_path_optional)) },
+        placeholder = { Text(stringResource(R.string.connection_certificate_placeholder)) },
+        readOnly = true,
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        OutlinedButton(onClick = onPickCertificate) {
+            Text(stringResource(R.string.connection_pick_certificate))
+        }
+        if (certificatePath.isNotBlank()) {
+            TextButton(onClick = onClearCertificate) {
+                Text(stringResource(R.string.connection_clear_certificate))
             }
         }
     }
