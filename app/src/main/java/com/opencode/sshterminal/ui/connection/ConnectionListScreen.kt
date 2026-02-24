@@ -57,6 +57,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.opencode.sshterminal.R
 import com.opencode.sshterminal.data.ConnectionIdentity
 import com.opencode.sshterminal.data.ConnectionProfile
+import com.opencode.sshterminal.data.PortForwardRule
 import com.opencode.sshterminal.data.ProxyJumpEntry
 import com.opencode.sshterminal.data.parseProxyJumpEntries
 import com.opencode.sshterminal.data.proxyJumpHostPortKey
@@ -300,6 +301,13 @@ private fun ConnectionCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                connectionRouteSummary(profile)?.let { summary ->
+                    Text(
+                        summary,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
 
             IconButton(onClick = onEdit) {
@@ -330,6 +338,7 @@ private data class ConnectionDraft(
     val privateKeyPath: String = "",
     val privateKeyPassphrase: String = "",
     val proxyJumpIdentityIds: Map<String, String> = emptyMap(),
+    val portForwards: List<PortForwardRule> = emptyList(),
 )
 
 private fun ConnectionProfile?.toDraft(): ConnectionDraft =
@@ -343,6 +352,7 @@ private fun ConnectionProfile?.toDraft(): ConnectionDraft =
         privateKeyPath = this?.privateKeyPath.orEmpty(),
         privateKeyPassphrase = this?.privateKeyPassphrase.orEmpty(),
         proxyJumpIdentityIds = this?.proxyJumpIdentityIds.orEmpty(),
+        portForwards = this?.portForwards.orEmpty(),
     )
 
 private fun ConnectionDraft.toProfileOrNull(
@@ -368,9 +378,21 @@ private fun ConnectionDraft.toProfileOrNull(
         privateKeyPassphrase = privateKeyPassphrase.ifBlank { null },
         identityId = selectedIdentityId,
         proxyJumpIdentityIds = filteredProxyJumpIdentityIds,
-        portForwards = initial?.portForwards.orEmpty(),
+        portForwards = portForwards,
         lastUsedEpochMillis = initial?.lastUsedEpochMillis ?: System.currentTimeMillis(),
     )
+}
+
+private fun connectionRouteSummary(profile: ConnectionProfile): String? {
+    val tags = mutableListOf<String>()
+    if (!profile.proxyJump.isNullOrBlank()) {
+        val hops = parseProxyJumpEntries(profile.proxyJump).size
+        tags += if (hops > 0) "PJ:$hops" else "PJ"
+    }
+    if (profile.portForwards.isNotEmpty()) {
+        tags += "FWD:${profile.portForwards.size}"
+    }
+    return tags.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -436,6 +458,7 @@ private fun ConnectionBottomSheet(
                 onDraftChange = { draft = it },
                 onPickPrivateKey = privateKeyPicker,
                 onClearPrivateKey = { draft = draft.copy(privateKeyPath = "", privateKeyPassphrase = "") },
+                onClearPortForwards = { draft = draft.copy(portForwards = emptyList()) },
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -469,6 +492,7 @@ private fun ConnectionFormFields(
     onDraftChange: (ConnectionDraft) -> Unit,
     onPickPrivateKey: () -> Unit,
     onClearPrivateKey: () -> Unit,
+    onClearPortForwards: () -> Unit,
 ) {
     if (identities.isNotEmpty()) {
         IdentitySelectorField(
@@ -525,6 +549,10 @@ private fun ConnectionFormFields(
                 }
             onDraftChange(draft.copy(proxyJumpIdentityIds = updated))
         },
+    )
+    PortForwardRulesSection(
+        rules = draft.portForwards,
+        onClear = onClearPortForwards,
     )
     OutlinedTextField(
         value = draft.port,
@@ -618,6 +646,35 @@ private fun ProxyJumpIdentitySection(
             identities = identities,
             selectedIdentityId = selectedIdentityIds[proxyJumpHostPortKey(entry.host, entry.port)],
             onSelect = { identity -> onSelect(entry, identity) },
+        )
+    }
+}
+
+@Composable
+private fun PortForwardRulesSection(
+    rules: List<PortForwardRule>,
+    onClear: () -> Unit,
+) {
+    if (rules.isEmpty()) return
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.connection_port_forward_rules_title),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        TextButton(onClick = onClear) {
+            Text(stringResource(R.string.connection_clear_port_forward_rules))
+        }
+    }
+    rules.forEach { rule ->
+        Text(
+            text = formatPortForwardRuleDisplay(rule),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
