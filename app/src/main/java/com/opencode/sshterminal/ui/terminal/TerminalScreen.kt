@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.opencode.sshterminal.R
 import com.opencode.sshterminal.data.ConnectionProfile
+import com.opencode.sshterminal.data.TerminalSnippet
 import com.opencode.sshterminal.session.HostKeyAlert
 import com.opencode.sshterminal.session.SessionSnapshot
 import com.opencode.sshterminal.session.TabId
@@ -67,10 +68,12 @@ fun TerminalScreen(
     val activeTabId by viewModel.activeTabId.collectAsState()
     val activeSnapshot by viewModel.activeSnapshot.collectAsState()
     val profiles by viewModel.profiles.collectAsState()
+    val snippets by viewModel.snippets.collectAsState()
     val terminalColorSchemeId by viewModel.terminalColorSchemeId.collectAsState()
     val terminalFontId by viewModel.terminalFont.collectAsState()
     var hadTabs by remember { mutableStateOf(false) }
     var showConnectionPicker by remember { mutableStateOf(false) }
+    var showSnippetSheet by remember { mutableStateOf(false) }
     var pageUpCount by remember { mutableStateOf(0) }
     var pageDownCount by remember { mutableStateOf(0) }
     val context = LocalContext.current
@@ -113,6 +116,7 @@ fun TerminalScreen(
         TerminalScreenCallbacks(
             onNavigateToSftp = onNavigateToSftp,
             onShowConnectionPicker = { showConnectionPicker = true },
+            onShowSnippets = { showSnippetSheet = true },
             onPageScroll = { direction ->
                 val handledRemotely = viewModel.handlePageScroll(direction)
                 if (!handledRemotely) {
@@ -123,7 +127,9 @@ fun TerminalScreen(
     val dialogState =
         TerminalDialogsState(
             showConnectionPicker = showConnectionPicker,
+            showSnippetSheet = showSnippetSheet,
             profiles = profiles,
+            snippets = snippets,
             hostKeyAlert = activeSnapshot?.hostKeyAlert,
         )
     val dialogCallbacks =
@@ -136,6 +142,13 @@ fun TerminalScreen(
             onRejectHostKey = viewModel::dismissHostKeyAlert,
             onTrustHostKeyOnce = viewModel::trustHostKeyOnce,
             onUpdateKnownHosts = viewModel::updateKnownHostsAndReconnect,
+            onDismissSnippetSheet = { showSnippetSheet = false },
+            onSaveSnippet = viewModel::saveSnippet,
+            onDeleteSnippet = { snippetId -> viewModel.deleteSnippet(snippetId) },
+            onRunSnippet = { command ->
+                showSnippetSheet = false
+                viewModel.runSnippet(command)
+            },
         )
 
     TerminalScaffold(
@@ -162,19 +175,23 @@ private data class TerminalScreenModel(
 private data class TerminalScreenCallbacks(
     val onNavigateToSftp: (connectionId: String) -> Unit,
     val onShowConnectionPicker: () -> Unit,
+    val onShowSnippets: () -> Unit,
     val onPageScroll: (Int) -> Unit,
 )
 
 private data class TerminalMainCallbacks(
     val onOpenDrawer: () -> Unit,
     val onShowConnectionPicker: () -> Unit,
+    val onShowSnippets: () -> Unit,
     val onPageScroll: (Int) -> Unit,
     val onCopyText: (String) -> Unit,
 )
 
 private data class TerminalDialogsState(
     val showConnectionPicker: Boolean,
+    val showSnippetSheet: Boolean,
     val profiles: List<ConnectionProfile>,
+    val snippets: List<TerminalSnippet>,
     val hostKeyAlert: HostKeyAlert?,
 )
 
@@ -184,6 +201,10 @@ private data class TerminalDialogsCallbacks(
     val onRejectHostKey: () -> Unit,
     val onTrustHostKeyOnce: () -> Unit,
     val onUpdateKnownHosts: () -> Unit,
+    val onDismissSnippetSheet: () -> Unit,
+    val onSaveSnippet: (existingSnippetId: String?, title: String, command: String) -> Unit,
+    val onDeleteSnippet: (snippetId: String) -> Unit,
+    val onRunSnippet: (command: String) -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -218,6 +239,7 @@ private fun TerminalScaffold(
                 TerminalMainCallbacks(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onShowConnectionPicker = callbacks.onShowConnectionPicker,
+                    onShowSnippets = callbacks.onShowSnippets,
                     onPageScroll = callbacks.onPageScroll,
                     onCopyText = { text -> viewModel.copyToClipboard(clipboardLabel, text) },
                 ),
@@ -284,6 +306,7 @@ private fun TerminalMainColumn(
         TerminalInputBar(
             onSendBytes = viewModel::sendInput,
             onMenuClick = callbacks.onOpenDrawer,
+            onSnippetClick = callbacks.onShowSnippets,
             onPageScroll = callbacks.onPageScroll,
             focusSignal = imeFocusSignal,
             modifier = Modifier.fillMaxWidth(),
@@ -301,6 +324,16 @@ private fun TerminalScreenDialogs(
             profiles = state.profiles,
             onDismiss = callbacks.onDismissConnectionPicker,
             onSelectProfile = callbacks.onSelectProfile,
+        )
+    }
+
+    if (state.showSnippetSheet) {
+        TerminalSnippetSheet(
+            snippets = state.snippets,
+            onDismiss = callbacks.onDismissSnippetSheet,
+            onSaveSnippet = callbacks.onSaveSnippet,
+            onRunSnippet = { snippet -> callbacks.onRunSnippet(snippet.command) },
+            onDeleteSnippet = { snippet -> callbacks.onDeleteSnippet(snippet.id) },
         )
     }
 

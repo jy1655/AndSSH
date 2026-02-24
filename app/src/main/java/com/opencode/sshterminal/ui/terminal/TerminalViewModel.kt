@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionRepository
 import com.opencode.sshterminal.data.SettingsRepository
+import com.opencode.sshterminal.data.TerminalSnippet
+import com.opencode.sshterminal.data.TerminalSnippetRepository
 import com.opencode.sshterminal.security.SensitiveClipboardManager
 import com.opencode.sshterminal.service.SshForegroundService
 import com.opencode.sshterminal.session.JumpCredential
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,6 +36,7 @@ class TerminalViewModel
         private val sessionManager: SessionManager,
         private val connectionRepository: ConnectionRepository,
         private val settingsRepository: SettingsRepository,
+        private val terminalSnippetRepository: TerminalSnippetRepository,
         private val sensitiveClipboardManager: SensitiveClipboardManager,
         @ApplicationContext private val context: Context,
     ) : ViewModel() {
@@ -62,6 +66,14 @@ class TerminalViewModel
 
         val profiles: StateFlow<List<ConnectionProfile>> =
             connectionRepository.profiles
+                .stateIn(
+                    viewModelScope,
+                    SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
+                    emptyList(),
+                )
+
+        val snippets: StateFlow<List<TerminalSnippet>> =
+            terminalSnippetRepository.snippets
                 .stateIn(
                     viewModelScope,
                     SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
@@ -147,6 +159,38 @@ class TerminalViewModel
             text: String,
         ) = sensitiveClipboardManager.copyToClipboard(label, text)
 
+        fun saveSnippet(
+            existingSnippetId: String?,
+            title: String,
+            command: String,
+        ) {
+            val normalizedCommand = command.trimEnd()
+            if (normalizedCommand.isBlank()) return
+            val normalizedTitle = title.trim().ifEmpty { normalizedCommand.lineSequence().first().trim() }.take(MAX_SNIPPET_TITLE_LENGTH)
+            val snippet =
+                TerminalSnippet(
+                    id = existingSnippetId ?: UUID.randomUUID().toString(),
+                    title = normalizedTitle,
+                    command = normalizedCommand,
+                    updatedAtEpochMillis = System.currentTimeMillis(),
+                )
+            viewModelScope.launch {
+                terminalSnippetRepository.save(snippet)
+            }
+        }
+
+        fun deleteSnippet(snippetId: String) {
+            viewModelScope.launch {
+                terminalSnippetRepository.delete(snippetId)
+            }
+        }
+
+        fun runSnippet(command: String) {
+            val normalized = command.trimEnd('\r', '\n')
+            if (normalized.isBlank()) return
+            sendInput("$normalized\r".toByteArray(Charsets.UTF_8))
+        }
+
         fun resize(
             cols: Int,
             rows: Int,
@@ -184,5 +228,6 @@ class TerminalViewModel
             private const val DEFAULT_TERMINAL_COLS = 120
             private const val DEFAULT_TERMINAL_ROWS = 40
             private const val MOUSE_WHEEL_STEPS_PER_PAGE_BUTTON = 3
+            private const val MAX_SNIPPET_TITLE_LENGTH = 48
         }
     }
