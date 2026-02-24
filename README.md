@@ -73,6 +73,26 @@ export PATH="$JAVA_HOME/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 ./gradlew --no-daemon connectedDebugAndroidTest
 ```
 
+### Automation scripts
+
+- CI-equivalent local check:
+
+```bash
+./scripts/ci-check.sh
+```
+
+- Physical-device smoke run (unit test + install + launch):
+
+```bash
+./scripts/device-smoke.sh
+```
+
+- If you only want install + launch on a connected device:
+
+```bash
+./scripts/device-smoke.sh --skip-tests
+```
+
 ## Release build for Google Play
 
 1. Bump release version in `app/build.gradle.kts`:
