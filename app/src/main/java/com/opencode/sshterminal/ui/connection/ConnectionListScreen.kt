@@ -217,13 +217,17 @@ fun ConnectionListScreen(
     if (showQuickConnectDialog) {
         QuickConnectDialog(
             onDismiss = { showQuickConnectDialog = false },
-            onConnect = { host, port, username, password ->
+            onConnect = { host, port, username, password, protocol ->
                 showQuickConnectDialog = false
                 viewModel.quickConnect(
-                    host = host,
-                    port = port,
-                    username = username,
-                    password = password.takeIf { it.isNotBlank() },
+                    input =
+                        QuickConnectInput(
+                            host = host,
+                            port = port,
+                            username = username,
+                            password = password.takeIf { it.isNotBlank() },
+                            protocol = protocol,
+                        ),
                 ) { connectionId -> onConnect(connectionId) }
             },
         )
