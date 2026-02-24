@@ -145,6 +145,9 @@
     <string name="terminal_connection_proxy_jump">ProxyJump hops: %1$d</string>
     <string name="terminal_connection_forwards">Forward rules: %1$d</string>
     <string name="terminal_connection_forwards_more">+%1$d more</string>
+    <string name="terminal_split_enable">Split</string>
+    <string name="terminal_split_disable">Single</string>
+    <string name="terminal_split_next_pane">Next Pane</string>
 
     <string name="sftp_browser_title">SFTP Browser</string>
     <string name="sftp_back">Back</string>
