@@ -471,6 +471,9 @@ private fun ConnectionBottomSheet(
                         draft = draft.copy(portForwards = updated)
                     }
                 },
+                onMovePortForwardRule = { from, to ->
+                    draft = draft.copy(portForwards = movePortForwardRule(draft.portForwards, from, to))
+                },
                 onRemovePortForwardRuleAt = { index ->
                     if (index in draft.portForwards.indices) {
                         draft = draft.copy(portForwards = draft.portForwards.toMutableList().also { it.removeAt(index) })
@@ -512,6 +515,7 @@ private fun ConnectionFormFields(
     onClearPrivateKey: () -> Unit,
     onAddPortForwardRule: (PortForwardRule) -> Unit,
     onUpdatePortForwardRuleAt: (Int, PortForwardRule) -> Unit,
+    onMovePortForwardRule: (Int, Int) -> Unit,
     onRemovePortForwardRuleAt: (Int) -> Unit,
     onClearPortForwards: () -> Unit,
 ) {
@@ -575,6 +579,7 @@ private fun ConnectionFormFields(
         rules = draft.portForwards,
         onAddRule = onAddPortForwardRule,
         onUpdateRuleAt = onUpdatePortForwardRuleAt,
+        onMoveRule = onMovePortForwardRule,
         onRemoveRuleAt = onRemovePortForwardRuleAt,
         onClear = onClearPortForwards,
     )
@@ -679,6 +684,7 @@ private fun PortForwardRulesSection(
     rules: List<PortForwardRule>,
     onAddRule: (PortForwardRule) -> Unit,
     onUpdateRuleAt: (Int, PortForwardRule) -> Unit,
+    onMoveRule: (Int, Int) -> Unit,
     onRemoveRuleAt: (Int) -> Unit,
     onClear: () -> Unit,
 ) {
@@ -726,6 +732,18 @@ private fun PortForwardRulesSection(
                 )
                 TextButton(onClick = { editingRuleIndex = index }) {
                     Text(stringResource(R.string.connection_edit))
+                }
+                TextButton(
+                    onClick = { onMoveRule(index, index - 1) },
+                    enabled = index > 0,
+                ) {
+                    Text(stringResource(R.string.connection_move_up_short))
+                }
+                TextButton(
+                    onClick = { onMoveRule(index, index + 1) },
+                    enabled = index < rules.lastIndex,
+                ) {
+                    Text(stringResource(R.string.connection_move_down_short))
                 }
                 TextButton(onClick = { onRemoveRuleAt(index) }) {
                     Text(stringResource(R.string.common_delete))
