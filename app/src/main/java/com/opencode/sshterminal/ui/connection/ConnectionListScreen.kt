@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -87,6 +87,7 @@ fun ConnectionListScreen(
             } else {
                 profiles.filter { profile ->
                     profile.name.contains(query, ignoreCase = true) ||
+                        profile.group.orEmpty().contains(query, ignoreCase = true) ||
                         profile.host.contains(query, ignoreCase = true) ||
                         profile.username.contains(query, ignoreCase = true)
                 }
@@ -219,6 +220,7 @@ private fun ConnectionListContent(
                 .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        val ungroupedLabel = stringResource(R.string.connection_group_ungrouped)
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
@@ -245,11 +247,31 @@ private fun ConnectionListContent(
                 }
             }
             else -> {
+                val sortedProfiles =
+                    profiles.sortedWith(
+                        compareBy(
+                            { profile -> profile.group.orEmpty().lowercase() },
+                            { profile -> profile.name.lowercase() },
+                        ),
+                    )
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(profiles, key = { it.id }) { profile ->
+                    itemsIndexed(sortedProfiles, key = { _, profile -> profile.id }) { index, profile ->
+                        val currentGroup = profile.group?.takeIf { it.isNotBlank() } ?: ungroupedLabel
+                        val previousGroup =
+                            sortedProfiles
+                                .getOrNull(index - 1)
+                                ?.group
+                                ?.takeIf { it.isNotBlank() } ?: ungroupedLabel
+                        if (index == 0 || currentGroup != previousGroup) {
+                            Text(
+                                text = currentGroup,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                         ConnectionCard(
                             profile = profile,
                             onClick = { onConnect(profile.id) },
@@ -395,6 +417,7 @@ private fun ConnectionCard(
 
 private data class ConnectionDraft(
     val name: String = "",
+    val group: String = "",
     val host: String = "",
     val proxyJump: String = "",
     val port: String = "22",
@@ -409,6 +432,7 @@ private data class ConnectionDraft(
 private fun ConnectionProfile?.toDraft(): ConnectionDraft =
     ConnectionDraft(
         name = this?.name.orEmpty(),
+        group = this?.group.orEmpty(),
         host = this?.host.orEmpty(),
         proxyJump = this?.proxyJump.orEmpty(),
         port = this?.port?.toString() ?: "22",
@@ -434,6 +458,7 @@ private fun ConnectionDraft.toProfileOrNull(
     return ConnectionProfile(
         id = initial?.id ?: UUID.randomUUID().toString(),
         name = name.ifBlank { "$username@$host" },
+        group = group.trim().ifBlank { null },
         host = host,
         proxyJump = proxyJump.trim().ifBlank { null },
         port = port.toIntOrNull()?.takeIf { it in 1..65535 } ?: 22,
@@ -595,6 +620,13 @@ private fun ConnectionFormFields(
         value = draft.name,
         onValueChange = { onDraftChange(draft.copy(name = it)) },
         label = { Text(stringResource(R.string.connection_label_name)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.group,
+        onValueChange = { onDraftChange(draft.copy(group = it)) },
+        label = { Text(stringResource(R.string.connection_label_group_optional)) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )

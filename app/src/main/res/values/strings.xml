@@ -24,6 +24,7 @@
     <string name="connection_search_label">Search</string>
     <string name="connection_search_placeholder">Search by name, host, or username</string>
     <string name="connection_no_search_results">No connections match \"%1$s\"</string>
+    <string name="connection_group_ungrouped">Ungrouped</string>
     <string name="connection_delete_title">Delete Connection</string>
     <string name="connection_delete_message">Delete "%1$s"? This cannot be undone.</string>
     <string name="connection_edit">Edit</string>
@@ -31,6 +32,7 @@
     <string name="connection_sheet_edit_title">Edit Connection</string>
     <string name="connection_sheet_new_title">New Connection</string>
     <string name="connection_label_name">Name</string>
+    <string name="connection_label_group_optional">Group (Optional)</string>
     <string name="connection_label_host">Host</string>
     <string name="connection_label_proxy_jump_optional">ProxyJump (Optional)</string>
     <string name="connection_proxy_jump_placeholder">e.g. user@bastion:22,jump2</string>
