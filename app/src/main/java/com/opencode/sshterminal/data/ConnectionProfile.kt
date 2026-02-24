@@ -17,5 +17,6 @@ data class ConnectionProfile(
     val proxyJump: String? = null,
     val proxyJumpIdentityIds: Map<String, String> = emptyMap(),
     val portForwards: List<PortForwardRule> = emptyList(),
+    val group: String? = null,
     val lastUsedEpochMillis: Long = 0L,
 )
