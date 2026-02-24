@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.DrawerState
@@ -29,8 +30,10 @@ import kotlinx.coroutines.launch
 fun AppDrawer(
     drawerState: DrawerState,
     connectionInfo: String,
+    isFocusMode: Boolean,
     onTerminal: () -> Unit,
     onSftp: () -> Unit,
+    onToggleFocusMode: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -73,6 +76,24 @@ fun AppDrawer(
             label = { Text(stringResource(R.string.drawer_sftp_browser)) },
             selected = false,
             onClick = { close(onSftp) },
+            modifier = Modifier.fillMaxWidth().padding(NavigationDrawerItemDefaults.ItemPadding),
+        )
+
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Default.CenterFocusStrong, contentDescription = null) },
+            label = {
+                Text(
+                    stringResource(
+                        if (isFocusMode) {
+                            R.string.drawer_exit_focus_mode
+                        } else {
+                            R.string.drawer_focus_mode
+                        },
+                    ),
+                )
+            },
+            selected = isFocusMode,
+            onClick = { close(onToggleFocusMode) },
             modifier = Modifier.fillMaxWidth().padding(NavigationDrawerItemDefaults.ItemPadding),
         )
 

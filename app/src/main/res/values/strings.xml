@@ -15,6 +15,8 @@
 
     <string name="drawer_terminal">Terminal</string>
     <string name="drawer_sftp_browser">SFTP Browser</string>
+    <string name="drawer_focus_mode">Focus Mode</string>
+    <string name="drawer_exit_focus_mode">Exit Focus Mode</string>
     <string name="drawer_disconnect_tab">Disconnect Tab</string>
 
     <string name="connection_list_title">SSH Connections</string>

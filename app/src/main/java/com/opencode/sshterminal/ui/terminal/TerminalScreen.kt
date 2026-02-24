@@ -41,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +80,7 @@ fun TerminalScreen(
     var showConnectionPicker by remember { mutableStateOf(false) }
     var showSnippetSheet by remember { mutableStateOf(false) }
     var showHistorySheet by remember { mutableStateOf(false) }
+    var isFocusMode by rememberSaveable { mutableStateOf(false) }
     var pageUpCount by remember { mutableStateOf(0) }
     var pageDownCount by remember { mutableStateOf(0) }
     val context = LocalContext.current
@@ -119,6 +121,7 @@ fun TerminalScreen(
             terminalFontId = terminalFontId,
             terminalHapticFeedbackEnabled = terminalHapticFeedbackEnabled,
             terminalCursorStyle = terminalCursorStyle,
+            isFocusMode = isFocusMode,
         )
     val screenCallbacks =
         TerminalScreenCallbacks(
@@ -126,6 +129,7 @@ fun TerminalScreen(
             onShowConnectionPicker = { showConnectionPicker = true },
             onShowSnippets = { showSnippetSheet = true },
             onShowHistory = { showHistorySheet = true },
+            onToggleFocusMode = { isFocusMode = !isFocusMode },
             onPageScroll = { direction ->
                 val handledRemotely = viewModel.handlePageScroll(direction)
                 if (!handledRemotely) {
@@ -190,6 +194,7 @@ private data class TerminalScreenModel(
     val terminalFontId: String,
     val terminalHapticFeedbackEnabled: Boolean,
     val terminalCursorStyle: Int,
+    val isFocusMode: Boolean,
 )
 
 private data class TerminalScreenCallbacks(
@@ -197,6 +202,7 @@ private data class TerminalScreenCallbacks(
     val onShowConnectionPicker: () -> Unit,
     val onShowSnippets: () -> Unit,
     val onShowHistory: () -> Unit,
+    val onToggleFocusMode: () -> Unit,
     val onPageScroll: (Int) -> Unit,
 )
 
@@ -254,8 +260,10 @@ private fun TerminalScaffold(
             AppDrawer(
                 drawerState = drawerState,
                 connectionInfo = model.connectionInfo,
+                isFocusMode = model.isFocusMode,
                 onTerminal = { },
                 onSftp = { model.activeConnectionId?.let(callbacks.onNavigateToSftp) },
+                onToggleFocusMode = callbacks.onToggleFocusMode,
                 onDisconnect = { viewModel.disconnectActiveTab() },
             )
         },
@@ -295,19 +303,21 @@ private fun TerminalMainColumn(
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .imePadding(),
     ) {
-        TerminalTabBar(
-            model =
-                TerminalTabBarModel(
-                    tabs = model.tabs,
-                    activeTabId = model.activeTabId,
-                ),
-            callbacks =
-                TerminalTabBarCallbacks(
-                    onSwitchTab = viewModel::switchTab,
-                    onShowNewTab = callbacks.onShowConnectionPicker,
-                    onCloseActiveTab = { model.activeTabId?.let(viewModel::closeTab) },
-                ),
-        )
+        if (!model.isFocusMode) {
+            TerminalTabBar(
+                model =
+                    TerminalTabBarModel(
+                        tabs = model.tabs,
+                        activeTabId = model.activeTabId,
+                    ),
+                callbacks =
+                    TerminalTabBarCallbacks(
+                        onSwitchTab = viewModel::switchTab,
+                        onShowNewTab = callbacks.onShowConnectionPicker,
+                        onCloseActiveTab = { model.activeTabId?.let(viewModel::closeTab) },
+                    ),
+            )
+        }
 
         TerminalRenderer(
             bridge = viewModel.bridge,
@@ -327,12 +337,14 @@ private fun TerminalMainColumn(
                 ),
         )
 
-        model.activeSnapshot?.error?.let { error ->
-            Text(
-                text = stringResource(R.string.terminal_error_format, error),
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-            )
+        if (!model.isFocusMode) {
+            model.activeSnapshot?.error?.let { error ->
+                Text(
+                    text = stringResource(R.string.terminal_error_format, error),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
         }
 
         TerminalInputBar(
@@ -343,6 +355,7 @@ private fun TerminalMainColumn(
             onSubmitCommand = callbacks.onSubmitCommand,
             onPageScroll = callbacks.onPageScroll,
             isHapticFeedbackEnabled = model.terminalHapticFeedbackEnabled,
+            showShortcutRow = !model.isFocusMode,
             focusSignal = imeFocusSignal,
             modifier = Modifier.fillMaxWidth(),
         )
