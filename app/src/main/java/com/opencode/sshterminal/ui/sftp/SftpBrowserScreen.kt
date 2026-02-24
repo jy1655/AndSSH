@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
@@ -33,6 +34,9 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -121,7 +125,13 @@ fun SftpBrowserScreen(
         contextMenuEntry = contextMenuEntry,
         onContextMenuEntryChange = { contextMenuEntry = it },
         menuCallbacks = menuCallbacks,
-        scaffoldCallbacks = SftpScaffoldCallbacks(onBack, launchers.launchUploadPicker, { showMkdirDialog = true }),
+        scaffoldCallbacks =
+            SftpScaffoldCallbacks(
+                onBack = onBack,
+                onUpload = launchers.launchUploadPicker,
+                onShowMkdirDialog = { showMkdirDialog = true },
+                onRefresh = viewModel::list,
+            ),
     )
     SftpDialogs(state = dialogState, callbacks = dialogCallbacks)
 }
@@ -130,6 +140,7 @@ private data class SftpScaffoldCallbacks(
     val onBack: () -> Unit,
     val onUpload: () -> Unit,
     val onShowMkdirDialog: () -> Unit,
+    val onRefresh: () -> Unit,
 )
 
 @Composable
@@ -166,6 +177,7 @@ private fun SftpBrowserScaffold(
             contextMenuEntry = contextMenuEntry,
             onContextMenuEntryChange = onContextMenuEntryChange,
             menuCallbacks = menuCallbacks,
+            onRefresh = scaffoldCallbacks.onRefresh,
         )
     }
 }
@@ -275,58 +287,70 @@ private fun SftpTopBar(
 }
 
 @Composable
+@OptIn(ExperimentalMaterialApi::class)
 private fun SftpBrowserBody(
     state: SftpUiState,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
     contextMenuEntry: RemoteEntry?,
     onContextMenuEntryChange: (RemoteEntry?) -> Unit,
     menuCallbacks: SftpMenuCallbacks,
 ) {
-    Column(modifier = modifier) {
-        Breadcrumbs(
-            path = state.remotePath,
-            onNavigate = menuCallbacks.onNavigate,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-        )
+    val pullRefreshState = rememberPullRefreshState(refreshing = state.busy, onRefresh = onRefresh)
 
-        AnimatedVisibility(
-            visible = state.transferProgress >= 0f,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
-            LinearProgressIndicator(
-                progress = { state.transferProgress.coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth(),
+    Box(modifier = modifier.pullRefresh(pullRefreshState)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Breadcrumbs(
+                path = state.remotePath,
+                onNavigate = menuCallbacks.onNavigate,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+
+            AnimatedVisibility(
+                visible = state.transferProgress >= 0f,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                LinearProgressIndicator(
+                    progress = { state.transferProgress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            HorizontalDivider()
+
+            AnimatedVisibility(
+                visible = state.status.isNotBlank(),
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Text(
+                    text = state.status,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+
+            SftpEntryList(
+                entries = state.entries,
+                contextMenuEntry = contextMenuEntry,
+                onContextMenuEntryChange = onContextMenuEntryChange,
+                menuCallbacks = menuCallbacks,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
             )
         }
 
-        HorizontalDivider()
-
-        AnimatedVisibility(
-            visible = state.status.isNotBlank(),
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
-            Text(
-                text = state.status,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-        }
-
-        SftpEntryList(
-            entries = state.entries,
-            contextMenuEntry = contextMenuEntry,
-            onContextMenuEntryChange = onContextMenuEntryChange,
-            menuCallbacks = menuCallbacks,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+        PullRefreshIndicator(
+            refreshing = state.busy,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter),
         )
     }
 }
