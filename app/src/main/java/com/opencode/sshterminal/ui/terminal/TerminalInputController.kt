@@ -20,13 +20,17 @@ internal enum class TerminalShortcut {
 }
 
 @Composable
-internal fun rememberTerminalInputController(onSendBytes: (ByteArray) -> Unit): TerminalInputController =
-    remember(onSendBytes) {
-        TerminalInputController(onSendBytes)
+internal fun rememberTerminalInputController(
+    onSendBytes: (ByteArray) -> Unit,
+    onSubmitCommand: (String) -> Unit,
+): TerminalInputController =
+    remember(onSendBytes, onSubmitCommand) {
+        TerminalInputController(onSendBytes, onSubmitCommand)
     }
 
 internal class TerminalInputController(
     private val onSendBytes: (ByteArray) -> Unit,
+    private val onSubmitCommand: (String) -> Unit,
 ) {
     var textFieldValue by mutableStateOf(TextFieldValue())
         private set
@@ -87,6 +91,10 @@ internal class TerminalInputController(
 
     fun submitInput() {
         flushComposing()
+        val submittedCommand = textFieldValue.text.trimEnd('\r', '\n')
+        if (submittedCommand.isNotBlank()) {
+            onSubmitCommand(submittedCommand)
+        }
         onSendBytes(byteArrayOf('\r'.code.toByte()))
         clearInput()
     }

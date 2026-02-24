@@ -106,6 +106,10 @@
     <string name="terminal_copy">Copy</string>
     <string name="terminal_paste">Paste</string>
     <string name="terminal_snippets_short">Snip</string>
+    <string name="terminal_history_short">Hist</string>
+    <string name="terminal_history_title">Command History</string>
+    <string name="terminal_history_empty">No recent commands</string>
+    <string name="terminal_history_clear">Clear all</string>
     <string name="terminal_snippets_title">Command Snippets</string>
     <string name="terminal_snippet_search_label">Search snippets</string>
     <string name="terminal_snippet_search_placeholder">Search by title or command</string>

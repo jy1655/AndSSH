@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionRepository
 import com.opencode.sshterminal.data.SettingsRepository
+import com.opencode.sshterminal.data.TerminalCommandHistoryEntry
+import com.opencode.sshterminal.data.TerminalCommandHistoryRepository
 import com.opencode.sshterminal.data.TerminalSnippet
 import com.opencode.sshterminal.data.TerminalSnippetRepository
 import com.opencode.sshterminal.security.SensitiveClipboardManager
@@ -40,6 +42,7 @@ class TerminalViewModel
         private val connectionRepository: ConnectionRepository,
         private val settingsRepository: SettingsRepository,
         private val terminalSnippetRepository: TerminalSnippetRepository,
+        private val terminalCommandHistoryRepository: TerminalCommandHistoryRepository,
         private val sensitiveClipboardManager: SensitiveClipboardManager,
         @ApplicationContext private val context: Context,
     ) : ViewModel() {
@@ -77,6 +80,14 @@ class TerminalViewModel
 
         val snippets: StateFlow<List<TerminalSnippet>> =
             terminalSnippetRepository.snippets
+                .stateIn(
+                    viewModelScope,
+                    SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
+                    emptyList(),
+                )
+
+        val commandHistory: StateFlow<List<TerminalCommandHistoryEntry>> =
+            terminalCommandHistoryRepository.commandHistory
                 .stateIn(
                     viewModelScope,
                     SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
@@ -243,6 +254,34 @@ class TerminalViewModel
             val normalized = command.trimEnd('\r', '\n')
             if (normalized.isBlank()) return
             sendInput("$normalized\r".toByteArray(Charsets.UTF_8))
+            recordCommand(normalized)
+        }
+
+        fun runHistoryCommand(command: String) {
+            val normalized = command.trimEnd('\r', '\n')
+            if (normalized.isBlank()) return
+            sendInput("$normalized\r".toByteArray(Charsets.UTF_8))
+            recordCommand(normalized)
+        }
+
+        fun recordCommand(command: String) {
+            val normalized = command.trimEnd('\r', '\n')
+            if (normalized.isBlank()) return
+            viewModelScope.launch {
+                terminalCommandHistoryRepository.record(normalized)
+            }
+        }
+
+        fun deleteHistoryCommand(command: String) {
+            viewModelScope.launch {
+                terminalCommandHistoryRepository.delete(command)
+            }
+        }
+
+        fun clearCommandHistory() {
+            viewModelScope.launch {
+                terminalCommandHistoryRepository.clear()
+            }
         }
 
         fun resize(
