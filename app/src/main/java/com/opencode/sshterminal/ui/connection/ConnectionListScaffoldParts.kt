@@ -2,6 +2,7 @@ package com.opencode.sshterminal.ui.connection
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -18,6 +19,7 @@ import com.opencode.sshterminal.R
 @Composable
 internal fun ConnectionListTopBar(
     onImportSshConfig: () -> Unit,
+    onQuickConnect: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     TopAppBar(
@@ -25,6 +27,12 @@ internal fun ConnectionListTopBar(
         actions = {
             TextButton(onClick = onImportSshConfig) {
                 Text(stringResource(R.string.connection_import_ssh_config))
+            }
+            IconButton(onClick = onQuickConnect) {
+                Icon(
+                    Icons.Default.FlashOn,
+                    contentDescription = stringResource(R.string.quick_connect_title),
+                )
             }
             IconButton(onClick = onOpenSettings) {
                 Icon(

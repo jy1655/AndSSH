@@ -77,6 +77,7 @@ fun ConnectionListScreen(
     var editingProfile by remember { mutableStateOf<ConnectionProfile?>(null) }
     var showSheet by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<ConnectionProfile?>(null) }
+    var showQuickConnectDialog by remember { mutableStateOf(false) }
     val sshConfigPicker =
         rememberConnectionSshConfigPicker(
             onImported = { content ->
@@ -121,6 +122,7 @@ fun ConnectionListScreen(
         topBar = {
             ConnectionListTopBar(
                 onImportSshConfig = sshConfigPicker,
+                onQuickConnect = { showQuickConnectDialog = true },
                 onOpenSettings = onOpenSettings,
             )
         },
@@ -165,6 +167,21 @@ fun ConnectionListScreen(
             deleteTarget = null
         },
     )
+
+    if (showQuickConnectDialog) {
+        QuickConnectDialog(
+            onDismiss = { showQuickConnectDialog = false },
+            onConnect = { host, port, username, password ->
+                showQuickConnectDialog = false
+                viewModel.quickConnect(
+                    host = host,
+                    port = port,
+                    username = username,
+                    password = password.takeIf { it.isNotBlank() },
+                ) { connectionId -> onConnect(connectionId) }
+            },
+        )
+    }
 }
 
 @Composable

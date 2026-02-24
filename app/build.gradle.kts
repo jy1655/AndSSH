@@ -156,6 +156,9 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
+    implementation("androidx.lifecycle:lifecycle-process:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
+
     // Hilt
     implementation("com.google.dagger:hilt-android:2.51.1")
     ksp("com.google.dagger:hilt-android-compiler:2.51.1")
@@ -174,6 +177,7 @@ dependencies {
 
     // Security
     implementation("androidx.security:security-crypto:1.0.0")
+    implementation("androidx.biometric:biometric:1.1.0")
 
     // SSH
     implementation("com.hierynomus:sshj:0.40.0")

@@ -1,8 +1,5 @@
 package com.opencode.sshterminal.ui.terminal
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,7 +52,6 @@ import com.opencode.sshterminal.R
 import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.session.HostKeyAlert
 import com.opencode.sshterminal.session.SessionSnapshot
-import com.opencode.sshterminal.session.SessionState
 import com.opencode.sshterminal.session.TabId
 import com.opencode.sshterminal.session.TabInfo
 import kotlinx.coroutines.launch
@@ -71,6 +67,8 @@ fun TerminalScreen(
     val activeTabId by viewModel.activeTabId.collectAsState()
     val activeSnapshot by viewModel.activeSnapshot.collectAsState()
     val profiles by viewModel.profiles.collectAsState()
+    val terminalColorSchemeId by viewModel.terminalColorSchemeId.collectAsState()
+    val terminalFontId by viewModel.terminalFont.collectAsState()
     var hadTabs by remember { mutableStateOf(false) }
     var showConnectionPicker by remember { mutableStateOf(false) }
     var pageUpCount by remember { mutableStateOf(0) }
@@ -108,6 +106,8 @@ fun TerminalScreen(
             activeSnapshot = activeSnapshot,
             activeConnectionId = activeTab?.connectionId,
             connectionInfo = connectionInfo,
+            terminalColorSchemeId = terminalColorSchemeId,
+            terminalFontId = terminalFontId,
         )
     val screenCallbacks =
         TerminalScreenCallbacks(
@@ -155,6 +155,8 @@ private data class TerminalScreenModel(
     val activeSnapshot: SessionSnapshot?,
     val activeConnectionId: String?,
     val connectionInfo: String,
+    val terminalColorSchemeId: String,
+    val terminalFontId: String,
 )
 
 private data class TerminalScreenCallbacks(
@@ -193,7 +195,6 @@ private fun TerminalScaffold(
     scrollCounters: TerminalScrollCounters,
     clipboardLabel: String,
 ) {
-    val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -218,11 +219,7 @@ private fun TerminalScaffold(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onShowConnectionPicker = callbacks.onShowConnectionPicker,
                     onPageScroll = callbacks.onPageScroll,
-                    onCopyText = { text ->
-                        val clipboard =
-                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText(clipboardLabel, text))
-                    },
+                    onCopyText = { text -> viewModel.copyToClipboard(clipboardLabel, text) },
                 ),
         )
     }
@@ -261,6 +258,8 @@ private fun TerminalMainColumn(
 
         TerminalRenderer(
             bridge = viewModel.bridge,
+            terminalColorSchemeId = model.terminalColorSchemeId,
+            terminalFontId = model.terminalFontId,
             modifier =
                 Modifier
                     .fillMaxWidth()

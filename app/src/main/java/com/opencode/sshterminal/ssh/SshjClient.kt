@@ -11,15 +11,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.common.SecurityUtils
-import net.schmizz.sshj.connection.channel.direct.PTYMode
-import net.schmizz.sshj.connection.channel.direct.Session
-import net.schmizz.sshj.connection.channel.direct.Parameters
 import net.schmizz.sshj.connection.channel.direct.DirectConnection
+import net.schmizz.sshj.connection.channel.direct.PTYMode
+import net.schmizz.sshj.connection.channel.direct.Parameters
+import net.schmizz.sshj.connection.channel.direct.Session
 import net.schmizz.sshj.connection.channel.forwarded.RemotePortForwarder
 import net.schmizz.sshj.connection.channel.forwarded.SocketForwardingConnectListener
-import java.io.BufferedInputStream
 import net.schmizz.sshj.transport.verification.OpenSSHKnownHosts
 import net.schmizz.sshj.transport.verification.PromiscuousVerifier
+import java.io.BufferedInputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -235,7 +235,7 @@ class SshjClient : SshClient {
                     .onFailure { error ->
                         Log.w(
                             TAG,
-                            "LocalForward stopped (${bindHost}:${serverSocket.localPort} -> ${targetHost}:${targetPort}): ${error.message}",
+                            "LocalForward stopped ($bindHost:${serverSocket.localPort} -> $targetHost:$targetPort): ${error.message}",
                         )
                     }
             }.apply {
@@ -245,7 +245,7 @@ class SshjClient : SshClient {
             }
         Log.i(
             TAG,
-            "LocalForward started ${bindHost}:${serverSocket.localPort} -> ${targetHost}:${targetPort}",
+            "LocalForward started $bindHost:${serverSocket.localPort} -> $targetHost:$targetPort",
         )
         return LocalForwardHandle(forwarder, serverSocket, thread)
     }
@@ -264,7 +264,7 @@ class SshjClient : SshClient {
         val activeForward = remotePortForwarder.bind(requestedForward, listener)
         Log.i(
             TAG,
-            "RemoteForward started ${activeForward.address}:${activeForward.port} -> ${targetHost}:${targetPort}",
+            "RemoteForward started ${activeForward.address}:${activeForward.port} -> $targetHost:$targetPort",
         )
         return RemoteForwardHandle(remotePortForwarder, activeForward)
     }
@@ -311,7 +311,7 @@ class SshjClient : SshClient {
                 start()
             }
         handle.setAcceptThread(acceptThread)
-        Log.i(TAG, "DynamicForward started ${bindHost}:${serverSocket.localPort}")
+        Log.i(TAG, "DynamicForward started $bindHost:${serverSocket.localPort}")
         return handle
     }
 

@@ -65,6 +65,43 @@ class ConnectionListViewModel
             }
         }
 
+        fun quickConnect(
+            host: String,
+            port: Int,
+            username: String,
+            password: String?,
+            onComplete: (String) -> Unit,
+        ) {
+            viewModelScope.launch {
+                val normalizedPort = port.takeIf { it in 1..65535 } ?: 22
+                val displayName = "Quick: $username@$host"
+                val identity =
+                    repository.upsertIdentity(
+                        existingIdentityId = null,
+                        displayName = displayName,
+                        username = username,
+                        password = password,
+                        privateKeyPath = null,
+                        privateKeyPassphrase = null,
+                    )
+                val profile =
+                    ConnectionProfile(
+                        id = UUID.randomUUID().toString(),
+                        name = displayName,
+                        host = host,
+                        port = normalizedPort,
+                        username = identity.username,
+                        password = identity.password,
+                        privateKeyPath = identity.privateKeyPath,
+                        privateKeyPassphrase = identity.privateKeyPassphrase,
+                        identityId = identity.id,
+                        lastUsedEpochMillis = System.currentTimeMillis(),
+                    )
+                repository.save(profile)
+                onComplete(profile.id)
+            }
+        }
+
         fun delete(id: String) {
             viewModelScope.launch { repository.delete(id) }
         }

@@ -10,12 +10,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.unit.dp
 import com.opencode.sshterminal.R
 import com.opencode.sshterminal.terminal.TermuxTerminalBridge
@@ -29,13 +27,29 @@ internal fun TerminalRenderSurface(
 ) {
     Box(modifier = modifier.focusable()) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawTerminalSurface(
-                bridge = bridge,
-                scrollOffset = state.scrollOffset,
-                selection = state.selection,
-                charSize = config.charSize,
-                textMeasurer = config.textMeasurer,
-            )
+            drawIntoCanvas { canvas ->
+                bridge.withReadLock {
+                    val emulator = bridge.emulator
+                    val effectiveScroll = state.scrollOffset.coerceIn(0, bridge.screen.activeTranscriptRows)
+                    val topRow = -effectiveScroll
+
+                    val sel = state.selection?.normalized
+                    val selY1 = sel?.startRow?.plus(effectiveScroll) ?: -1
+                    val selY2 = sel?.endRow?.plus(effectiveScroll) ?: -1
+                    val selX1 = sel?.startCol ?: -1
+                    val selX2 = sel?.endCol ?: -1
+
+                    config.termuxRenderer.render(
+                        emulator,
+                        canvas.nativeCanvas,
+                        topRow,
+                        selY1,
+                        selY2,
+                        selX1,
+                        selX2,
+                    )
+                }
+            }
         }
         val selection = state.selection
         val onCopyText = config.onCopyText
@@ -60,81 +74,6 @@ internal fun TerminalRenderSurface(
     }
 }
 
-private fun DrawScope.drawTerminalSurface(
-    bridge: TermuxTerminalBridge,
-    scrollOffset: Int,
-    selection: TerminalSelection?,
-    charSize: Size,
-    textMeasurer: TextMeasurer,
-) {
-    drawRect(DEFAULT_BG, Offset.Zero, size)
-
-    bridge.withReadLock {
-        val screen = bridge.screen
-        val rows = bridge.termRows
-        val cols = bridge.termCols
-        val effectiveScroll = scrollOffset.coerceIn(0, screen.activeTranscriptRows)
-        val rowConfig =
-            TerminalRowRenderConfig(
-                cols = cols,
-                charSize = charSize,
-                textMeasurer = textMeasurer,
-            )
-
-        for (screenRow in 0 until rows) {
-            val bufferRow = screenRow - effectiveScroll
-            drawTerminalRow(
-                screen = screen,
-                bufferRow = bufferRow,
-                screenRow = screenRow,
-                config = rowConfig,
-            )
-        }
-        drawCursor(bridge, effectiveScroll, rows, charSize)
-        drawSelection(selection, rows, cols, effectiveScroll, charSize)
-    }
-}
-
-private fun DrawScope.drawCursor(
-    bridge: TermuxTerminalBridge,
-    effectiveScroll: Int,
-    rows: Int,
-    charSize: Size,
-) {
-    val cursorScreenRow = bridge.cursorRow + effectiveScroll
-    if (cursorScreenRow !in 0 until rows || !bridge.emulator.shouldCursorBeVisible()) return
-    val cx = bridge.cursorCol * charSize.width
-    val cy = cursorScreenRow * charSize.height
-    drawRect(CURSOR_COLOR, Offset(cx, cy), Size(charSize.width, charSize.height), alpha = 0.5f)
-}
-
-private fun DrawScope.drawSelection(
-    selection: TerminalSelection?,
-    rows: Int,
-    cols: Int,
-    effectiveScroll: Int,
-    charSize: Size,
-) {
-    val normalized = selection?.normalized ?: return
-    for (screenRow in 0 until rows) {
-        val bufferRow = screenRow - effectiveScroll
-        if (bufferRow >= normalized.startRow && bufferRow <= normalized.endRow) {
-            val startCol = if (bufferRow == normalized.startRow) normalized.startCol else 0
-            val endCol = if (bufferRow == normalized.endRow) normalized.endCol else cols
-            if (endCol > startCol) {
-                val x = startCol * charSize.width
-                val w = (endCol - startCol) * charSize.width
-                val y = screenRow * charSize.height
-                drawRect(
-                    color = Color(0x5033B5E5),
-                    topLeft = Offset(x, y),
-                    size = Size(w, charSize.height),
-                )
-            }
-        }
-    }
-}
-
 internal data class TerminalRenderState(
     val scrollOffset: Int,
     val selection: TerminalSelection?,
@@ -142,6 +81,6 @@ internal data class TerminalRenderState(
 
 internal data class TerminalRenderConfig(
     val charSize: Size,
-    val textMeasurer: TextMeasurer,
+    val termuxRenderer: com.termux.view.TerminalRenderer,
     val onCopyText: ((String) -> Unit)?,
 )
