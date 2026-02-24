@@ -9,4 +9,6 @@ interface KeyRepository {
     suspend fun loadEncryptedPrivateKey(alias: String): ByteArray?
 
     suspend fun delete(alias: String)
+
+    suspend fun listAliases(): List<String>
 }

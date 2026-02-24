@@ -7,8 +7,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionRepository
-import com.opencode.sshterminal.session.JumpCredential
+import com.opencode.sshterminal.data.SettingsRepository
+import com.opencode.sshterminal.security.SensitiveClipboardManager
 import com.opencode.sshterminal.service.SshForegroundService
+import com.opencode.sshterminal.session.JumpCredential
 import com.opencode.sshterminal.session.SessionManager
 import com.opencode.sshterminal.session.SessionSnapshot
 import com.opencode.sshterminal.session.TabId
@@ -24,11 +26,14 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
+@Suppress("TooManyFunctions")
 class TerminalViewModel
     @Inject
     constructor(
         private val sessionManager: SessionManager,
         private val connectionRepository: ConnectionRepository,
+        private val settingsRepository: SettingsRepository,
+        private val sensitiveClipboardManager: SensitiveClipboardManager,
         @ApplicationContext private val context: Context,
     ) : ViewModel() {
         val tabs: StateFlow<List<TabInfo>> =
@@ -64,6 +69,22 @@ class TerminalViewModel
                 )
 
         val bridge: TermuxTerminalBridge get() = sessionManager.bridge
+
+        val terminalColorSchemeId: StateFlow<String> =
+            settingsRepository.terminalColorScheme
+                .stateIn(
+                    viewModelScope,
+                    SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
+                    SettingsRepository.DEFAULT_TERMINAL_COLOR_SCHEME,
+                )
+
+        val terminalFont: StateFlow<String> =
+            settingsRepository.terminalFont
+                .stateIn(
+                    viewModelScope,
+                    SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
+                    SettingsRepository.DEFAULT_TERMINAL_FONT,
+                )
 
         init {
             viewModelScope.launch {
@@ -120,6 +141,11 @@ class TerminalViewModel
         fun disconnectActiveTab() = sessionManager.disconnect()
 
         fun sendInput(bytes: ByteArray) = sessionManager.sendInput(bytes)
+
+        fun copyToClipboard(
+            label: String,
+            text: String,
+        ) = sensitiveClipboardManager.copyToClipboard(label, text)
 
         fun resize(
             cols: Int,

@@ -1,5 +1,7 @@
 package com.opencode.sshterminal.ui.terminal
 
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -28,13 +30,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.opencode.sshterminal.R
 
 @Composable
 fun TerminalInputBar(
@@ -74,6 +79,7 @@ fun TerminalInputBar(
                         altArmed = controller.altArmed,
                     ),
                 actions = shortcutActions,
+                onSendBytes = onSendBytes,
             )
             TerminalTextInputRow(
                 focusSignal = focusSignal,
@@ -102,7 +108,9 @@ private data class TerminalShortcutActions(
 private fun TerminalShortcutRow(
     state: TerminalModifierState,
     actions: TerminalShortcutActions,
+    onSendBytes: (ByteArray) -> Unit,
 ) {
+    val context = LocalContext.current
     Row(
         modifier =
             Modifier
@@ -127,6 +135,14 @@ private fun TerminalShortcutRow(
         KeyChip("PgDn") { actions.onPageScroll?.invoke(-1) }
         KeyChip("^C") { actions.onShortcut(TerminalShortcut.CTRL_C) }
         KeyChip("^D") { actions.onShortcut(TerminalShortcut.CTRL_D) }
+        KeyChip(stringResource(R.string.terminal_paste)) {
+            val clipboard =
+                context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            val text = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
+            if (!text.isNullOrEmpty()) {
+                onSendBytes(text.toByteArray(Charsets.UTF_8))
+            }
+        }
     }
 }
 

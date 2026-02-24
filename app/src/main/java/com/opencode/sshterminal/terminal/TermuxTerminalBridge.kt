@@ -1,8 +1,8 @@
 package com.opencode.sshterminal.terminal
 
+import com.termux.terminal.KeyHandler
 import com.termux.terminal.TerminalBuffer
 import com.termux.terminal.TerminalEmulator
-import com.termux.terminal.KeyHandler
 import com.termux.terminal.TerminalOutput
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

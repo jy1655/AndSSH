@@ -66,10 +66,11 @@ internal fun parseSshConfig(content: String): SshConfigImportParseResult {
 
     val hosts =
         parsedHosts.values.mapNotNull { host ->
-            val user = host.user?.takeIf { it.isNotBlank() } ?: run {
-                skipped += 1
-                return@mapNotNull null
-            }
+            val user =
+                host.user?.takeIf { it.isNotBlank() } ?: run {
+                    skipped += 1
+                    return@mapNotNull null
+                }
             val resolvedHost = host.hostName?.takeIf { it.isNotBlank() } ?: host.alias
             SshConfigImportHost(
                 alias = host.alias,

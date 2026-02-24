@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import com.opencode.sshterminal.security.KeyRepository
+import com.opencode.sshterminal.security.KeyRepositoryImpl
 import com.opencode.sshterminal.sftp.SftpChannelAdapter
 import com.opencode.sshterminal.sftp.SshjSftpAdapter
 import com.opencode.sshterminal.ssh.SshClient
@@ -47,5 +49,13 @@ object AppModule {
     @Provides
     fun provideSftpAdapter(): SftpChannelAdapter {
         return SshjSftpAdapter()
+    }
+
+    @Provides
+    @Singleton
+    fun provideKeyRepository(
+        @ApplicationContext context: Context,
+    ): KeyRepository {
+        return KeyRepositoryImpl(context)
     }
 }

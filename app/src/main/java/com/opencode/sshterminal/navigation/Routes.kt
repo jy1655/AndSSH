@@ -5,6 +5,7 @@ object Routes {
     const val TERMINAL = "terminal"
     const val SFTP = "sftp/{connectionId}"
     const val SETTINGS = "settings"
+    const val CRASH_LOGS = "crash_logs"
 
     fun sftp(connectionId: String) = "sftp/$connectionId"
 }

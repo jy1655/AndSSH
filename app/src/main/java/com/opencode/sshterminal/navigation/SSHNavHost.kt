@@ -9,6 +9,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.opencode.sshterminal.crash.CrashReportScreen
 import com.opencode.sshterminal.ui.connection.ConnectionListScreen
 import com.opencode.sshterminal.ui.settings.SettingsScreen
 import com.opencode.sshterminal.ui.sftp.SftpBrowserScreen
@@ -79,7 +80,12 @@ fun SSHNavHost(
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
+                onNavigateToCrashLogs = { navController.navigate(Routes.CRASH_LOGS) },
             )
+        }
+
+        composable(Routes.CRASH_LOGS) {
+            CrashReportScreen(onBack = { navController.popBackStack() })
         }
     }
 }
