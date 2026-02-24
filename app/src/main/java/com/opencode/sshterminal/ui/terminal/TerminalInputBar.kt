@@ -45,6 +45,7 @@ import com.opencode.sshterminal.R
 fun TerminalInputBar(
     onSendBytes: (ByteArray) -> Unit,
     onMenuClick: (() -> Unit)? = null,
+    onSnippetClick: (() -> Unit)? = null,
     onPageScroll: ((Int) -> Unit)? = null,
     focusSignal: Int = 0,
     modifier: Modifier = Modifier,
@@ -54,6 +55,7 @@ fun TerminalInputBar(
     val shortcutActions =
         TerminalShortcutActions(
             onMenuClick = onMenuClick,
+            onSnippetClick = onSnippetClick,
             onPageScroll = onPageScroll,
             onToggleCtrl = controller::toggleCtrl,
             onToggleAlt = controller::toggleAlt,
@@ -98,6 +100,7 @@ private data class TerminalModifierState(
 
 private data class TerminalShortcutActions(
     val onMenuClick: (() -> Unit)?,
+    val onSnippetClick: (() -> Unit)?,
     val onPageScroll: ((Int) -> Unit)?,
     val onToggleCtrl: () -> Unit,
     val onToggleAlt: () -> Unit,
@@ -121,6 +124,9 @@ private fun TerminalShortcutRow(
     ) {
         actions.onMenuClick?.let { onMenuClick ->
             KeyChip("\u2630", onClick = onMenuClick)
+        }
+        actions.onSnippetClick?.let { onSnippetClick ->
+            KeyChip(stringResource(R.string.terminal_snippets_short), onClick = onSnippetClick)
         }
         KeyChip("ESC") { actions.onShortcut(TerminalShortcut.ESC) }
         KeyChip("TAB") { actions.onShortcut(TerminalShortcut.TAB) }
