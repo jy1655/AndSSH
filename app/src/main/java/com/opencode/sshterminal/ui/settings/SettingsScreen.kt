@@ -55,7 +55,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.opencode.sshterminal.BuildConfig
 import com.opencode.sshterminal.R
+import com.opencode.sshterminal.data.DEFAULT_TERMINAL_SHORTCUT_LAYOUT_ITEMS
 import com.opencode.sshterminal.data.SettingsRepository
+import com.opencode.sshterminal.data.TerminalShortcutLayoutItem
+import com.opencode.sshterminal.data.parseTerminalShortcutLayout
+import com.opencode.sshterminal.data.serializeTerminalShortcutLayout
 import com.opencode.sshterminal.terminal.TerminalColorSchemePreset
 import com.opencode.sshterminal.terminal.TerminalFontPreset
 import com.opencode.sshterminal.ui.theme.ClassicPurple
@@ -448,6 +452,7 @@ private fun TerminalSection(
     var showCursorDialog by remember { mutableStateOf(false) }
     var showClipboardDialog by remember { mutableStateOf(false) }
     var showKeepaliveDialog by remember { mutableStateOf(false) }
+    var showShortcutLayoutDialog by remember { mutableStateOf(false) }
 
     val schemeOptions = TerminalColorSchemePreset.entries.map { it.id to it.displayName }
     val fontOptions = TerminalFontPreset.entries.map { it.id to it.displayName }
@@ -484,6 +489,12 @@ private fun TerminalSection(
     val keepaliveLabel =
         keepaliveOptions.firstOrNull { it.first == state.sshKeepaliveIntervalSeconds }?.second
             ?: keepaliveOptions[1].second
+    val shortcutLayoutItems = parseTerminalShortcutLayout(state.terminalShortcutLayout)
+    val shortcutLayoutLabel =
+        stringResource(
+            R.string.settings_terminal_shortcut_layout_value,
+            shortcutLayoutItems.size,
+        )
 
     SectionHeader(stringResource(R.string.settings_terminal_title))
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
@@ -522,6 +533,12 @@ private fun TerminalSection(
                 title = stringResource(R.string.settings_ssh_keepalive),
                 value = keepaliveLabel,
                 onClick = { showKeepaliveDialog = true },
+            )
+            SettingsDivider()
+            SettingsValueRow(
+                title = stringResource(R.string.settings_terminal_shortcut_layout),
+                value = shortcutLayoutLabel,
+                onClick = { showShortcutLayoutDialog = true },
             )
             SettingsDivider()
             SettingsSwitchRow(
@@ -580,6 +597,162 @@ private fun TerminalSection(
         onSelected = viewModel::setSshKeepaliveInterval,
         onDismiss = { showKeepaliveDialog = false },
     )
+    ShortcutLayoutDialog(
+        show = showShortcutLayoutDialog,
+        currentLayout = state.terminalShortcutLayout,
+        onSave = viewModel::setTerminalShortcutLayout,
+        onDismiss = { showShortcutLayoutDialog = false },
+    )
+}
+
+@Suppress("LongMethod")
+@Composable
+private fun ShortcutLayoutDialog(
+    show: Boolean,
+    currentLayout: String,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!show) {
+        return
+    }
+    var draftItems by remember(currentLayout) { mutableStateOf(parseTerminalShortcutLayout(currentLayout)) }
+    val availableItems =
+        TerminalShortcutLayoutItem.entries.filterNot { item ->
+            draftItems.contains(item)
+        }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_terminal_shortcut_layout_edit_title)) },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(serializeTerminalShortcutLayout(draftItems))
+                    onDismiss()
+                },
+            ) {
+                Text(stringResource(R.string.common_save))
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { draftItems = DEFAULT_TERMINAL_SHORTCUT_LAYOUT_ITEMS }) {
+                    Text(stringResource(R.string.settings_terminal_shortcut_layout_reset))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (draftItems.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.settings_terminal_shortcut_layout_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                draftItems.forEachIndexed { index, item ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = shortcutLayoutItemLabel(item),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            enabled = index > 0,
+                            onClick = {
+                                draftItems = moveShortcutLayoutItem(draftItems, index, index - 1)
+                            },
+                        ) {
+                            Text(stringResource(R.string.connection_move_up_short))
+                        }
+                        TextButton(
+                            enabled = index < draftItems.lastIndex,
+                            onClick = {
+                                draftItems = moveShortcutLayoutItem(draftItems, index, index + 1)
+                            },
+                        ) {
+                            Text(stringResource(R.string.connection_move_down_short))
+                        }
+                        TextButton(
+                            onClick = {
+                                draftItems =
+                                    draftItems.toMutableList().apply {
+                                        removeAt(index)
+                                    }
+                            },
+                        ) {
+                            Text(stringResource(R.string.common_delete))
+                        }
+                    }
+                }
+                if (availableItems.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.settings_terminal_shortcut_layout_add_key),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    availableItems.forEach { item ->
+                        TextButton(
+                            onClick = {
+                                draftItems = draftItems + item
+                            },
+                        ) {
+                            Text("+ ${shortcutLayoutItemLabel(item)}")
+                        }
+                    }
+                }
+            }
+        },
+    )
+}
+
+@Composable
+@Suppress("CyclomaticComplexMethod")
+private fun shortcutLayoutItemLabel(item: TerminalShortcutLayoutItem): String {
+    return when (item) {
+        TerminalShortcutLayoutItem.MENU -> "\u2630"
+        TerminalShortcutLayoutItem.SNIPPETS -> stringResource(R.string.terminal_snippets_short)
+        TerminalShortcutLayoutItem.HISTORY -> stringResource(R.string.terminal_history_short)
+        TerminalShortcutLayoutItem.ESC -> "ESC"
+        TerminalShortcutLayoutItem.TAB -> "TAB"
+        TerminalShortcutLayoutItem.CTRL -> "Ctrl"
+        TerminalShortcutLayoutItem.ALT -> "Alt"
+        TerminalShortcutLayoutItem.ARROW_UP -> "\u2191"
+        TerminalShortcutLayoutItem.ARROW_DOWN -> "\u2193"
+        TerminalShortcutLayoutItem.ARROW_LEFT -> "\u2190"
+        TerminalShortcutLayoutItem.ARROW_RIGHT -> "\u2192"
+        TerminalShortcutLayoutItem.BACKSPACE -> "\u232B"
+        TerminalShortcutLayoutItem.PAGE_UP -> "PgUp"
+        TerminalShortcutLayoutItem.PAGE_DOWN -> "PgDn"
+        TerminalShortcutLayoutItem.CTRL_C -> "^C"
+        TerminalShortcutLayoutItem.CTRL_D -> "^D"
+        TerminalShortcutLayoutItem.PASTE -> stringResource(R.string.terminal_paste)
+    }
+}
+
+private fun moveShortcutLayoutItem(
+    items: List<TerminalShortcutLayoutItem>,
+    fromIndex: Int,
+    toIndex: Int,
+): List<TerminalShortcutLayoutItem> {
+    return if (fromIndex !in items.indices || toIndex !in items.indices) {
+        items
+    } else {
+        items.toMutableList().apply {
+            val item = removeAt(fromIndex)
+            add(toIndex, item)
+        }
+    }
 }
 
 @Composable

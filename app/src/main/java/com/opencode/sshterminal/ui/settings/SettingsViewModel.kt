@@ -8,6 +8,7 @@ import com.opencode.sshterminal.auth.AuthRepository
 import com.opencode.sshterminal.crash.CrashReportRepository
 import com.opencode.sshterminal.data.ConnectionBackupImportSummary
 import com.opencode.sshterminal.data.ConnectionBackupManager
+import com.opencode.sshterminal.data.DEFAULT_TERMINAL_SHORTCUT_LAYOUT
 import com.opencode.sshterminal.data.SettingsRepository
 import com.opencode.sshterminal.ui.theme.ThemePreset
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,6 +32,7 @@ data class SettingsUiState(
     val terminalFontSizeSp: Int = SettingsRepository.DEFAULT_TERMINAL_FONT_SIZE_SP,
     val terminalCursorStyle: Int = SettingsRepository.DEFAULT_TERMINAL_CURSOR_STYLE,
     val terminalHapticFeedbackEnabled: Boolean = SettingsRepository.DEFAULT_TERMINAL_HAPTIC_FEEDBACK_ENABLED,
+    val terminalShortcutLayout: String = DEFAULT_TERMINAL_SHORTCUT_LAYOUT,
     val clipboardTimeoutSeconds: Int = 30,
     val sshKeepaliveIntervalSeconds: Int = SettingsRepository.DEFAULT_SSH_KEEPALIVE_INTERVAL,
     val crashReportCount: Int = 0,
@@ -92,13 +94,15 @@ class SettingsViewModel
             combine(
                 terminalCorePreferencesFlow,
                 terminalInputFeedbackFlow,
-            ) { corePrefs, feedbackPrefs ->
+                settingsRepository.terminalShortcutLayout,
+            ) { corePrefs, feedbackPrefs, shortcutLayout ->
                 TerminalPreferences(
                     colorScheme = corePrefs.colorScheme,
                     font = corePrefs.font,
                     fontSizeSp = corePrefs.fontSizeSp,
                     clipboardTimeoutSeconds = corePrefs.clipboardTimeoutSeconds,
                     sshKeepaliveIntervalSeconds = corePrefs.sshKeepaliveIntervalSeconds,
+                    terminalShortcutLayout = shortcutLayout,
                     terminalHapticFeedbackEnabled = feedbackPrefs.hapticFeedbackEnabled,
                     terminalCursorStyle = feedbackPrefs.cursorStyle,
                 )
@@ -116,6 +120,7 @@ class SettingsViewModel
                     terminalFontSizeSp = terminalPrefs.fontSizeSp,
                     clipboardTimeoutSeconds = terminalPrefs.clipboardTimeoutSeconds,
                     sshKeepaliveIntervalSeconds = terminalPrefs.sshKeepaliveIntervalSeconds,
+                    terminalShortcutLayout = terminalPrefs.terminalShortcutLayout,
                     terminalHapticFeedbackEnabled = terminalPrefs.terminalHapticFeedbackEnabled,
                     terminalCursorStyle = terminalPrefs.terminalCursorStyle,
                 )
@@ -148,6 +153,7 @@ class SettingsViewModel
                     terminalFontSizeSp = prefs.terminalFontSizeSp,
                     terminalCursorStyle = prefs.terminalCursorStyle,
                     terminalHapticFeedbackEnabled = prefs.terminalHapticFeedbackEnabled,
+                    terminalShortcutLayout = prefs.terminalShortcutLayout,
                     clipboardTimeoutSeconds = prefs.clipboardTimeoutSeconds,
                     sshKeepaliveIntervalSeconds = prefs.sshKeepaliveIntervalSeconds,
                     crashReportCount = crashCount,
@@ -243,6 +249,12 @@ class SettingsViewModel
             }
         }
 
+        fun setTerminalShortcutLayout(layout: String) {
+            viewModelScope.launch {
+                settingsRepository.setTerminalShortcutLayout(layout)
+            }
+        }
+
         suspend fun exportEncryptedBackup(): String {
             return connectionBackupManager.exportEncryptedBackup()
         }
@@ -266,6 +278,7 @@ private data class SettingsPreferences(
     val terminalFontSizeSp: Int,
     val terminalCursorStyle: Int,
     val terminalHapticFeedbackEnabled: Boolean,
+    val terminalShortcutLayout: String,
     val clipboardTimeoutSeconds: Int,
     val sshKeepaliveIntervalSeconds: Int,
 )
@@ -288,6 +301,7 @@ private data class TerminalPreferences(
     val fontSizeSp: Int,
     val terminalCursorStyle: Int,
     val terminalHapticFeedbackEnabled: Boolean,
+    val terminalShortcutLayout: String,
     val clipboardTimeoutSeconds: Int,
     val sshKeepaliveIntervalSeconds: Int,
 )
