@@ -122,6 +122,18 @@ class SshjSftpAdapter : SftpChannelAdapter {
         requireSftp().rename(oldPath, newPath)
     }
 
+    override suspend fun readPermissions(remotePath: String): Int =
+        withContext(Dispatchers.IO) {
+            requireSftp().mode(remotePath).permissionsMask and PERMISSIONS_MASK
+        }
+
+    override suspend fun chmod(
+        remotePath: String,
+        permissions: Int,
+    ) = withContext(Dispatchers.IO) {
+        requireSftp().chmod(remotePath, permissions and PERMISSIONS_MASK)
+    }
+
     private fun requireSftp(): SFTPClient = sftp ?: error("Not connected. Call connect() first.")
 
     private fun removeRecursively(
@@ -228,3 +240,5 @@ internal fun isSftpNoSuchFileError(t: Throwable): Boolean {
     }
     return false
 }
+
+private const val PERMISSIONS_MASK = 0x1FF

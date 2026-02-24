@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -87,6 +88,8 @@ fun SftpBrowserScreen(
     var showMkdirDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<RemoteEntry?>(null) }
     var deleteTarget by remember { mutableStateOf<RemoteEntry?>(null) }
+    var permissionsTarget by remember { mutableStateOf<RemoteEntry?>(null) }
+    var permissionsInput by remember { mutableStateOf("") }
     var showBulkDeleteDialog by remember { mutableStateOf(false) }
     var contextMenuEntry by remember { mutableStateOf<RemoteEntry?>(null) }
     var selectionMode by remember { mutableStateOf(false) }
@@ -115,12 +118,24 @@ fun SftpBrowserScreen(
                 contextMenuEntry = null
                 deleteTarget = entry
             },
+            onPermissions = { entry ->
+                contextMenuEntry = null
+                permissionsInput = ""
+                viewModel.loadPermissions(entry.path) { octal ->
+                    if (octal != null) {
+                        permissionsInput = octal
+                        permissionsTarget = entry
+                    }
+                }
+            },
         )
     val dialogState =
         SftpDialogState(
             showMkdirDialog = showMkdirDialog,
             renameTarget = renameTarget,
             deleteTarget = deleteTarget,
+            permissionsTarget = permissionsTarget,
+            permissionInput = permissionsInput,
             showBulkDeleteDialog = showBulkDeleteDialog,
             selectedCount = selectedPaths.size,
         )
@@ -129,6 +144,9 @@ fun SftpBrowserScreen(
             onDismissMkdir = { showMkdirDialog = false },
             onDismissRename = { renameTarget = null },
             onDismissDelete = { deleteTarget = null },
+            onDismissPermissions = {
+                permissionsTarget = null
+            },
             onDismissBulkDelete = { showBulkDeleteDialog = false },
             onMkdir = { name ->
                 showMkdirDialog = false
@@ -141,6 +159,10 @@ fun SftpBrowserScreen(
             onDelete = { path ->
                 deleteTarget = null
                 viewModel.rm(path)
+            },
+            onChmod = { path, octalText ->
+                permissionsTarget = null
+                viewModel.chmod(path, octalText)
             },
             onDeleteSelected = {
                 showBulkDeleteDialog = false
@@ -305,12 +327,15 @@ private data class SftpMenuCallbacks(
     val onDownload: (RemoteEntry) -> Unit,
     val onRename: (RemoteEntry) -> Unit,
     val onDelete: (RemoteEntry) -> Unit,
+    val onPermissions: (RemoteEntry) -> Unit,
 )
 
 private data class SftpDialogState(
     val showMkdirDialog: Boolean,
     val renameTarget: RemoteEntry?,
     val deleteTarget: RemoteEntry?,
+    val permissionsTarget: RemoteEntry?,
+    val permissionInput: String,
     val showBulkDeleteDialog: Boolean,
     val selectedCount: Int,
 )
@@ -319,10 +344,12 @@ private data class SftpDialogCallbacks(
     val onDismissMkdir: () -> Unit,
     val onDismissRename: () -> Unit,
     val onDismissDelete: () -> Unit,
+    val onDismissPermissions: () -> Unit,
     val onDismissBulkDelete: () -> Unit,
     val onMkdir: (name: String) -> Unit,
     val onRename: (oldPath: String, newName: String) -> Unit,
     val onDelete: (remotePath: String) -> Unit,
+    val onChmod: (remotePath: String, octalText: String) -> Unit,
     val onDeleteSelected: () -> Unit,
 )
 
@@ -543,6 +570,11 @@ private fun SftpEntryList(
                             onClick = { menuCallbacks.onRename(entry) },
                         )
                         DropdownMenuItem(
+                            text = { Text(stringResource(R.string.sftp_permissions)) },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            onClick = { menuCallbacks.onPermissions(entry) },
+                        )
+                        DropdownMenuItem(
                             text = { Text(stringResource(R.string.sftp_delete)) },
                             leadingIcon = {
                                 Icon(
@@ -616,6 +648,20 @@ private fun SftpDialogs(
                     Text(stringResource(R.string.common_cancel))
                 }
             },
+        )
+    }
+
+    state.permissionsTarget?.let { entry ->
+        InputDialog(
+            dialogState =
+                InputDialogState(
+                    title = stringResource(R.string.sftp_permissions),
+                    placeholder = stringResource(R.string.sftp_permissions_placeholder),
+                    initialValue = state.permissionInput,
+                    confirmLabel = stringResource(R.string.common_save),
+                    onConfirm = { octalText -> callbacks.onChmod(entry.path, octalText) },
+                ),
+            onDismiss = callbacks.onDismissPermissions,
         )
     }
 
