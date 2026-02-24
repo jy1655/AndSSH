@@ -95,7 +95,12 @@ fun TerminalScreen(
         TerminalScreenCallbacks(
             onNavigateToSftp = onNavigateToSftp,
             onShowConnectionPicker = { showConnectionPicker = true },
-            onPageScroll = { direction -> if (direction > 0) pageUpCount++ else pageDownCount++ },
+            onPageScroll = { direction ->
+                val handledRemotely = viewModel.handlePageScroll(direction)
+                if (!handledRemotely) {
+                    if (direction > 0) pageUpCount++ else pageDownCount++
+                }
+            },
         )
     val dialogState =
         TerminalDialogsState(

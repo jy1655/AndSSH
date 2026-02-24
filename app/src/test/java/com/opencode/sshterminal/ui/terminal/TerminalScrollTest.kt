@@ -23,6 +23,7 @@ class TerminalScrollTest {
             "Swipe up (dragAmount<0) must decrease scrollOffset, got ${result.newScrollOffset}",
             result.newScrollOffset < 10,
         )
+        assertTrue("Swipe up should produce negative rowDelta, got ${result.rowDelta}", result.rowDelta < 0)
     }
 
     @Test
@@ -40,6 +41,7 @@ class TerminalScrollTest {
             "Swipe down (dragAmount>0) must increase scrollOffset, got ${result.newScrollOffset}",
             result.newScrollOffset > 0,
         )
+        assertTrue("Swipe down should produce positive rowDelta, got ${result.rowDelta}", result.rowDelta > 0)
     }
 
     @Test
@@ -80,6 +82,7 @@ class TerminalScrollTest {
             )
         assertEquals(5, result.newScrollOffset)
         assertEquals(-10f, result.newPixelAccumulator, 0.01f)
+        assertEquals(0, result.rowDelta)
     }
 
     @Test

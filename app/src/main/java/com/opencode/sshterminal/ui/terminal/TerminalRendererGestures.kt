@@ -11,6 +11,7 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import com.opencode.sshterminal.terminal.TermuxTerminalBridge
+import kotlin.math.abs
 
 internal data class TerminalGestureEnvironment(
     val bridge: TermuxTerminalBridge,
@@ -136,7 +137,7 @@ private fun applyGestureMode(
 ) {
     when {
         session.selectionMode -> updateSelection(position, environment, state)
-        session.scrollMode -> updateScroll(position.y - session.lastPosition.y, environment, state)
+        session.scrollMode -> updateScroll(position, position.y - session.lastPosition.y, environment, state)
     }
 }
 
@@ -165,6 +166,7 @@ private fun updateSelection(
 }
 
 private fun updateScroll(
+    position: Offset,
     dragAmount: Float,
     environment: TerminalGestureEnvironment,
     state: TerminalGestureState,
@@ -178,8 +180,57 @@ private fun updateScroll(
             charHeightPx = environment.charHeightPx,
             maxScroll = environment.bridge.screen.activeTranscriptRows,
         )
-    state.scrollOffsetState.value = result.newScrollOffset
     state.scrollPixelAccumulatorState.value = result.newPixelAccumulator
+    if (result.rowDelta == 0) return
+
+    val bridge = environment.bridge
+    if (bridge.isMouseTrackingActive()) {
+        val (col, row) = visibleCellFromOffset(position, environment)
+        bridge.sendMouseWheel(
+            // Keep TUI wheel direction aligned with local terminal scrollback gesture direction.
+            scrollUp = result.rowDelta > 0,
+            col = col + 1,
+            row = row + 1,
+            repeatCount = abs(result.rowDelta),
+        )
+        state.scrollOffsetState.value = 0
+        return
+    }
+
+    if (bridge.isAlternateBufferActive()) {
+        val keyCode =
+            if (result.rowDelta > 0) {
+                android.view.KeyEvent.KEYCODE_DPAD_UP
+            } else {
+                android.view.KeyEvent.KEYCODE_DPAD_DOWN
+            }
+        repeat(abs(result.rowDelta)) {
+            bridge.sendKeyCode(keyCode)
+        }
+        state.scrollOffsetState.value = 0
+        return
+    }
+
+    state.scrollOffsetState.value = result.newScrollOffset
+}
+
+private fun visibleCellFromOffset(
+    offset: Offset,
+    environment: TerminalGestureEnvironment,
+): Pair<Int, Int> {
+    val (row, col) =
+        offsetToCell(
+            offset = offset,
+            layout =
+                TerminalCellLayout(
+                    charWidthPx = environment.charWidthPx,
+                    charHeightPx = environment.charHeightPx,
+                    scrollOffset = 0,
+                    cols = environment.bridge.termCols,
+                    rows = environment.bridge.termRows,
+                ),
+        )
+    return Pair(col, row)
 }
 
 private fun finishGesture(

@@ -2,6 +2,7 @@ package com.opencode.sshterminal.terminal
 
 import com.termux.terminal.TerminalBuffer
 import com.termux.terminal.TerminalEmulator
+import com.termux.terminal.KeyHandler
 import com.termux.terminal.TerminalOutput
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,6 +74,54 @@ class TermuxTerminalBridge(
         lock.write {
             emulator.reset()
             _renderVersion.value++
+        }
+
+    fun isMouseTrackingActive(): Boolean = lock.read { emulator.isMouseTrackingActive }
+
+    fun isAlternateBufferActive(): Boolean = lock.read { emulator.isAlternateBufferActive }
+
+    fun sendMouseEvent(
+        button: Int,
+        col: Int,
+        row: Int,
+        pressed: Boolean,
+    ) = lock.write {
+        emulator.sendMouseEvent(button, col, row, pressed)
+    }
+
+    fun sendMouseWheel(
+        scrollUp: Boolean,
+        col: Int = cursorCol + 1,
+        row: Int = cursorRow + 1,
+        repeatCount: Int = 1,
+    ) = lock.write {
+        val button =
+            if (scrollUp) {
+                TerminalEmulator.MOUSE_WHEELUP_BUTTON
+            } else {
+                TerminalEmulator.MOUSE_WHEELDOWN_BUTTON
+            }
+        val safeCol = col.coerceAtLeast(1)
+        val safeRow = row.coerceAtLeast(1)
+        repeat(repeatCount.coerceAtLeast(1)) {
+            emulator.sendMouseEvent(button, safeCol, safeRow, true)
+        }
+    }
+
+    fun sendKeyCode(
+        keyCode: Int,
+        keyMod: Int = 0,
+    ): Boolean =
+        lock.read {
+            val code =
+                KeyHandler.getCode(
+                    keyCode,
+                    keyMod,
+                    emulator.isCursorKeysApplicationMode,
+                    emulator.isKeypadApplicationMode,
+                ) ?: return false
+            onWriteToSsh(code.toByteArray(Charsets.UTF_8))
+            true
         }
 
     fun <T> withReadLock(block: TermuxTerminalBridge.() -> T): T = lock.read { block() }

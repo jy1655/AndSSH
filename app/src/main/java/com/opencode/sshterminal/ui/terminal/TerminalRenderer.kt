@@ -366,6 +366,7 @@ private fun color256(index: Int): Color {
  *  - Swipe DOWN → dragAmount > 0 → rowDelta > 0 → offset increases (history).
  */
 internal data class ScrollUpdate(
+    val rowDelta: Int,
     val newScrollOffset: Int,
     val newPixelAccumulator: Float,
 )
@@ -381,11 +382,13 @@ internal fun computeScrollUpdate(
     val rowDelta = (newAccumulator / charHeightPx).toInt()
     return if (rowDelta != 0) {
         ScrollUpdate(
+            rowDelta = rowDelta,
             newScrollOffset = (currentScrollOffset + rowDelta).coerceIn(0, maxScroll),
             newPixelAccumulator = newAccumulator - rowDelta * charHeightPx,
         )
     } else {
         ScrollUpdate(
+            rowDelta = 0,
             newScrollOffset = currentScrollOffset,
             newPixelAccumulator = newAccumulator,
         )
