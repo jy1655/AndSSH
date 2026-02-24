@@ -2,6 +2,8 @@ package com.opencode.sshterminal.app
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -21,6 +23,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.rememberNavController
 import com.opencode.sshterminal.data.SettingsRepository
 import com.opencode.sshterminal.navigation.SSHNavHost
+import com.opencode.sshterminal.session.SessionManager
 import com.opencode.sshterminal.ui.lock.LockScreen
 import com.opencode.sshterminal.ui.lock.LockViewModel
 import com.opencode.sshterminal.ui.theme.AppTheme
@@ -33,6 +36,17 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
+    @Inject
+    lateinit var sessionManager: SessionManager
+
+    private var networkCallbackRegistered = false
+    private val networkCallback =
+        object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                sessionManager.reconnectTabsOnNetworkAvailable()
+            }
+        }
+
     private val notificationPermissionLauncher =
         registerForActivityResult(
             ActivityResultContracts.RequestPermission(),
@@ -42,6 +56,7 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         requestNotificationPermissionIfNeeded()
+        registerNetworkMonitoring()
 
         setContent {
             val themePresetId by settingsRepository.themePresetId.collectAsState(
@@ -94,6 +109,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onDestroy() {
+        unregisterNetworkMonitoring()
+        super.onDestroy()
+    }
+
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted =
@@ -104,5 +124,22 @@ class MainActivity : AppCompatActivity() {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+    }
+
+    private fun registerNetworkMonitoring() {
+        val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return
+        runCatching {
+            connectivityManager.registerDefaultNetworkCallback(networkCallback)
+            networkCallbackRegistered = true
+        }
+    }
+
+    private fun unregisterNetworkMonitoring() {
+        if (!networkCallbackRegistered) return
+        val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return
+        runCatching {
+            connectivityManager.unregisterNetworkCallback(networkCallback)
+        }
+        networkCallbackRegistered = false
     }
 }
