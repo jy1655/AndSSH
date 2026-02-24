@@ -52,6 +52,7 @@ fun TerminalInputBar(
     onSubmitCommand: (String) -> Unit = {},
     onPageScroll: ((Int) -> Unit)? = null,
     isHapticFeedbackEnabled: Boolean = true,
+    showShortcutRow: Boolean = true,
     focusSignal: Int = 0,
     modifier: Modifier = Modifier,
 ) {
@@ -89,16 +90,18 @@ fun TerminalInputBar(
                     .padding(horizontal = 4.dp, vertical = 3.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            TerminalShortcutRow(
-                state =
-                    TerminalModifierState(
-                        ctrlArmed = controller.ctrlArmed,
-                        altArmed = controller.altArmed,
-                    ),
-                actions = shortcutActions,
-                onSendBytes = onSendBytes,
-                onKeyTap = onKeyTap,
-            )
+            if (showShortcutRow) {
+                TerminalShortcutRow(
+                    state =
+                        TerminalModifierState(
+                            ctrlArmed = controller.ctrlArmed,
+                            altArmed = controller.altArmed,
+                        ),
+                    actions = shortcutActions,
+                    onSendBytes = onSendBytes,
+                    onKeyTap = onKeyTap,
+                )
+            }
             TerminalTextInputRow(
                 focusSignal = focusSignal,
                 textFieldValue = controller.textFieldValue,
