@@ -75,6 +75,7 @@ fun TerminalScreen(
     var showConnectionPicker by remember { mutableStateOf(false) }
     var pageUpCount by remember { mutableStateOf(0) }
     var pageDownCount by remember { mutableStateOf(0) }
+    val context = LocalContext.current
     val clipboardLabel = stringResource(R.string.terminal_clipboard_label)
 
     LaunchedEffect(tabs) {
@@ -83,13 +84,27 @@ fun TerminalScreen(
     }
 
     val activeTab = tabs.find { it.tabId == activeTabId }
+    val activeProfile =
+        activeTab
+            ?.connectionId
+            ?.let { connectionId -> profiles.firstOrNull { profile -> profile.id == connectionId } }
+    val connectionInfo =
+        buildTerminalConnectionInfo(activeSnapshot, activeProfile)
+            ?.toDisplayText(
+                proxyJumpFormatter = { count ->
+                    context.getString(R.string.terminal_connection_proxy_jump, count)
+                },
+                forwardFormatter = { count ->
+                    context.getString(R.string.terminal_connection_forwards, count)
+                },
+            ).orEmpty()
     val screenModel =
         TerminalScreenModel(
             tabs = tabs,
             activeTabId = activeTabId,
             activeSnapshot = activeSnapshot,
             activeConnectionId = activeTab?.connectionId,
-            connectionInfo = activeSnapshot.toConnectionInfo(),
+            connectionInfo = connectionInfo,
         )
     val screenCallbacks =
         TerminalScreenCallbacks(
@@ -475,13 +490,4 @@ private fun HostKeyChangedDialog(
             }
         },
     )
-}
-
-private fun SessionSnapshot?.toConnectionInfo(): String {
-    val snapshot = this ?: return ""
-    return if (snapshot.host.isNotBlank()) {
-        "${snapshot.username}@${snapshot.host}:${snapshot.port}"
-    } else {
-        ""
-    }
 }
