@@ -6,7 +6,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.opencode.sshterminal.R
+import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionRepository
+import com.opencode.sshterminal.session.JumpCredential
 import com.opencode.sshterminal.session.toConnectRequest
 import com.opencode.sshterminal.sftp.RemoteEntry
 import com.opencode.sshterminal.sftp.SftpChannelAdapter
@@ -43,11 +45,15 @@ class SftpBrowserViewModel
         init {
             viewModelScope.launch {
                 val profile = connectionRepository.get(connectionId) ?: return@launch
+                val identity = profile.identityId?.let { identityId -> connectionRepository.getIdentity(identityId) }
+                val proxyJumpCredentials = resolveProxyJumpCredentials(profile)
                 val request =
                     profile.toConnectRequest(
                         context = context,
                         cols = DEFAULT_SFTP_COLS,
                         rows = DEFAULT_SFTP_ROWS,
+                        identity = identity,
+                        proxyJumpCredentials = proxyJumpCredentials,
                     )
                 _uiState.value =
                     _uiState.value.copy(
@@ -267,6 +273,19 @@ class SftpBrowserViewModel
         private fun resolveRemoteChildPath(name: String): String {
             val currentDir = _uiState.value.remotePath.trimEnd('/')
             return "$currentDir/$name"
+        }
+
+        private suspend fun resolveProxyJumpCredentials(profile: ConnectionProfile): Map<String, JumpCredential> {
+            return profile.proxyJumpIdentityIds.mapNotNull { (hostPortKey, identityId) ->
+                val identity = connectionRepository.getIdentity(identityId) ?: return@mapNotNull null
+                hostPortKey to
+                    JumpCredential(
+                        username = identity.username,
+                        password = identity.password,
+                        privateKeyPath = identity.privateKeyPath,
+                        privateKeyPassphrase = identity.privateKeyPassphrase,
+                    )
+            }.toMap()
         }
 
         companion object {

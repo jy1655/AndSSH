@@ -1,5 +1,6 @@
 package com.opencode.sshterminal.ui.connection
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,12 +49,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.opencode.sshterminal.R
+import com.opencode.sshterminal.data.ConnectionIdentity
 import com.opencode.sshterminal.data.ConnectionProfile
+import com.opencode.sshterminal.data.ProxyJumpEntry
+import com.opencode.sshterminal.data.parseProxyJumpEntries
+import com.opencode.sshterminal.data.proxyJumpHostPortKey
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,13 +69,59 @@ fun ConnectionListScreen(
     onOpenSettings: () -> Unit,
     viewModel: ConnectionListViewModel = hiltViewModel(),
 ) {
+    val context = LocalContext.current
     val profiles by viewModel.profiles.collectAsState()
+    val identities by viewModel.identities.collectAsState()
     var editingProfile by remember { mutableStateOf<ConnectionProfile?>(null) }
     var showSheet by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<ConnectionProfile?>(null) }
+    val sshConfigPicker =
+        rememberConnectionSshConfigPicker(
+            onImported = { content ->
+                viewModel.importFromSshConfig(content) { summary ->
+                    val message =
+                        when {
+                            summary.importedCount <= 0 -> {
+                                context.getString(
+                                    R.string.connection_import_no_valid_hosts,
+                                    summary.skippedCount,
+                                )
+                            }
+
+                            summary.skippedCount > 0 -> {
+                                context.getString(
+                                    R.string.connection_import_result_with_skipped,
+                                    summary.importedCount,
+                                    summary.skippedCount,
+                                )
+                            }
+
+                            else -> {
+                                context.getString(
+                                    R.string.connection_import_result,
+                                    summary.importedCount,
+                                )
+                            }
+                        }
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onFailed = {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.connection_import_failed),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            },
+        )
 
     Scaffold(
-        topBar = { ConnectionListTopBar(onOpenSettings = onOpenSettings) },
+        topBar = {
+            ConnectionListTopBar(
+                onImportSshConfig = sshConfigPicker,
+                onOpenSettings = onOpenSettings,
+            )
+        },
         floatingActionButton = {
             ConnectionListAddButton(
                 onClick = {
@@ -92,6 +146,7 @@ fun ConnectionListScreen(
     if (showSheet) {
         ConnectionBottomSheet(
             initial = editingProfile,
+            identities = identities,
             onDismiss = { showSheet = false },
             onSave = { profile ->
                 viewModel.save(profile)
@@ -268,35 +323,52 @@ private fun ConnectionCard(
 private data class ConnectionDraft(
     val name: String = "",
     val host: String = "",
+    val proxyJump: String = "",
     val port: String = "22",
     val username: String = "",
     val password: String = "",
     val privateKeyPath: String = "",
     val privateKeyPassphrase: String = "",
+    val proxyJumpIdentityIds: Map<String, String> = emptyMap(),
 )
 
 private fun ConnectionProfile?.toDraft(): ConnectionDraft =
     ConnectionDraft(
         name = this?.name.orEmpty(),
         host = this?.host.orEmpty(),
+        proxyJump = this?.proxyJump.orEmpty(),
         port = this?.port?.toString() ?: "22",
         username = this?.username.orEmpty(),
         password = this?.password.orEmpty(),
         privateKeyPath = this?.privateKeyPath.orEmpty(),
         privateKeyPassphrase = this?.privateKeyPassphrase.orEmpty(),
+        proxyJumpIdentityIds = this?.proxyJumpIdentityIds.orEmpty(),
     )
 
-private fun ConnectionDraft.toProfileOrNull(initial: ConnectionProfile?): ConnectionProfile? {
+private fun ConnectionDraft.toProfileOrNull(
+    initial: ConnectionProfile?,
+    selectedIdentityId: String?,
+): ConnectionProfile? {
     if (host.isBlank() || username.isBlank()) return null
+    val proxyJumpEntries = parseProxyJumpEntries(proxyJump)
+    val validHopKeys =
+        proxyJumpEntries
+            .map { entry -> proxyJumpHostPortKey(entry.host, entry.port) }
+            .toSet()
+    val filteredProxyJumpIdentityIds = proxyJumpIdentityIds.filterKeys { key -> key in validHopKeys }
     return ConnectionProfile(
         id = initial?.id ?: UUID.randomUUID().toString(),
         name = name.ifBlank { "$username@$host" },
         host = host,
+        proxyJump = proxyJump.trim().ifBlank { null },
         port = port.toIntOrNull()?.takeIf { it in 1..65535 } ?: 22,
         username = username,
         password = password.ifBlank { null },
         privateKeyPath = privateKeyPath.ifBlank { null },
         privateKeyPassphrase = privateKeyPassphrase.ifBlank { null },
+        identityId = selectedIdentityId,
+        proxyJumpIdentityIds = filteredProxyJumpIdentityIds,
+        portForwards = initial?.portForwards.orEmpty(),
         lastUsedEpochMillis = initial?.lastUsedEpochMillis ?: System.currentTimeMillis(),
     )
 }
@@ -305,11 +377,13 @@ private fun ConnectionDraft.toProfileOrNull(initial: ConnectionProfile?): Connec
 @Composable
 private fun ConnectionBottomSheet(
     initial: ConnectionProfile?,
+    identities: List<ConnectionIdentity>,
     onDismiss: () -> Unit,
     onSave: (ConnectionProfile) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var draft by remember(initial) { mutableStateOf(initial.toDraft()) }
+    var selectedIdentityId by remember(initial) { mutableStateOf(initial?.identityId) }
     val privateKeyPicker =
         rememberConnectionPrivateKeyPicker(
             onImported = { importedPath ->
@@ -345,6 +419,20 @@ private fun ConnectionBottomSheet(
 
             ConnectionFormFields(
                 draft = draft,
+                identities = identities,
+                selectedIdentityId = selectedIdentityId,
+                onSelectIdentity = { identity ->
+                    selectedIdentityId = identity?.id
+                    if (identity != null) {
+                        draft =
+                            draft.copy(
+                                username = identity.username,
+                                password = identity.password.orEmpty(),
+                                privateKeyPath = identity.privateKeyPath.orEmpty(),
+                                privateKeyPassphrase = identity.privateKeyPassphrase.orEmpty(),
+                            )
+                    }
+                },
                 onDraftChange = { draft = it },
                 onPickPrivateKey = privateKeyPicker,
                 onClearPrivateKey = { draft = draft.copy(privateKeyPath = "", privateKeyPassphrase = "") },
@@ -363,7 +451,7 @@ private fun ConnectionBottomSheet(
 
                 Button(
                     onClick = {
-                        draft.toProfileOrNull(initial)?.let(onSave)
+                        draft.toProfileOrNull(initial, selectedIdentityId)?.let(onSave)
                     },
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(R.string.common_save)) }
@@ -375,10 +463,21 @@ private fun ConnectionBottomSheet(
 @Composable
 private fun ConnectionFormFields(
     draft: ConnectionDraft,
+    identities: List<ConnectionIdentity>,
+    selectedIdentityId: String?,
+    onSelectIdentity: (ConnectionIdentity?) -> Unit,
     onDraftChange: (ConnectionDraft) -> Unit,
     onPickPrivateKey: () -> Unit,
     onClearPrivateKey: () -> Unit,
 ) {
+    if (identities.isNotEmpty()) {
+        IdentitySelectorField(
+            identities = identities,
+            selectedIdentityId = selectedIdentityId,
+            onSelectIdentity = onSelectIdentity,
+        )
+    }
+
     OutlinedTextField(
         value = draft.name,
         onValueChange = { onDraftChange(draft.copy(name = it)) },
@@ -392,6 +491,40 @@ private fun ConnectionFormFields(
         label = { Text(stringResource(R.string.connection_label_host)) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.proxyJump,
+        onValueChange = { value ->
+            val hopKeys =
+                parseProxyJumpEntries(value)
+                    .map { entry -> proxyJumpHostPortKey(entry.host, entry.port) }
+                    .toSet()
+            onDraftChange(
+                draft.copy(
+                    proxyJump = value,
+                    proxyJumpIdentityIds = draft.proxyJumpIdentityIds.filterKeys { key -> key in hopKeys },
+                ),
+            )
+        },
+        label = { Text(stringResource(R.string.connection_label_proxy_jump_optional)) },
+        placeholder = { Text(stringResource(R.string.connection_proxy_jump_placeholder)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    ProxyJumpIdentitySection(
+        proxyJumpEntries = parseProxyJumpEntries(draft.proxyJump),
+        identities = identities,
+        selectedIdentityIds = draft.proxyJumpIdentityIds,
+        onSelect = { entry, identity ->
+            val key = proxyJumpHostPortKey(entry.host, entry.port)
+            val updated =
+                if (identity == null) {
+                    draft.proxyJumpIdentityIds - key
+                } else {
+                    draft.proxyJumpIdentityIds + (key to identity.id)
+                }
+            onDraftChange(draft.copy(proxyJumpIdentityIds = updated))
+        },
     )
     OutlinedTextField(
         value = draft.port,
@@ -422,4 +555,112 @@ private fun ConnectionFormFields(
         onPickPrivateKey = onPickPrivateKey,
         onClearPrivateKey = onClearPrivateKey,
     )
+}
+
+@Composable
+private fun IdentitySelectorField(
+    identities: List<ConnectionIdentity>,
+    selectedIdentityId: String?,
+    onSelectIdentity: (ConnectionIdentity?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedIdentity = identities.firstOrNull { identity -> identity.id == selectedIdentityId }
+    val selectedLabel =
+        selectedIdentity?.name ?: stringResource(R.string.connection_identity_manual)
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("${stringResource(R.string.connection_identity_selector_label)}: $selectedLabel")
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.connection_identity_manual)) },
+                onClick = {
+                    expanded = false
+                    onSelectIdentity(null)
+                },
+            )
+            identities.forEach { identity ->
+                DropdownMenuItem(
+                    text = { Text(identity.name) },
+                    onClick = {
+                        expanded = false
+                        onSelectIdentity(identity)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProxyJumpIdentitySection(
+    proxyJumpEntries: List<ProxyJumpEntry>,
+    identities: List<ConnectionIdentity>,
+    selectedIdentityIds: Map<String, String>,
+    onSelect: (ProxyJumpEntry, ConnectionIdentity?) -> Unit,
+) {
+    if (proxyJumpEntries.isEmpty() || identities.isEmpty()) return
+
+    Text(
+        text = stringResource(R.string.connection_proxy_jump_identity_title),
+        style = MaterialTheme.typography.labelLarge,
+    )
+    proxyJumpEntries.forEach { entry ->
+        ProxyJumpIdentityRow(
+            entry = entry,
+            identities = identities,
+            selectedIdentityId = selectedIdentityIds[proxyJumpHostPortKey(entry.host, entry.port)],
+            onSelect = { identity -> onSelect(entry, identity) },
+        )
+    }
+}
+
+@Composable
+private fun ProxyJumpIdentityRow(
+    entry: ProxyJumpEntry,
+    identities: List<ConnectionIdentity>,
+    selectedIdentityId: String?,
+    onSelect: (ConnectionIdentity?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selected = identities.firstOrNull { identity -> identity.id == selectedIdentityId }
+    val selectedLabel = selected?.name ?: stringResource(R.string.connection_identity_manual)
+    val hopLabel = "${entry.username?.let { "$it@" }.orEmpty()}${entry.host}:${entry.port}"
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("$hopLabel -> $selectedLabel")
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.connection_identity_manual)) },
+                onClick = {
+                    expanded = false
+                    onSelect(null)
+                },
+            )
+            identities.forEach { identity ->
+                DropdownMenuItem(
+                    text = { Text(identity.name) },
+                    onClick = {
+                        expanded = false
+                        onSelect(identity)
+                    },
+                )
+            }
+        }
+    }
 }

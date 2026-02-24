@@ -1,5 +1,6 @@
 package com.opencode.sshterminal.session
 
+import com.opencode.sshterminal.data.PortForwardRule
 import java.util.UUID
 
 data class SessionId(val value: String = UUID.randomUUID().toString())
@@ -38,10 +39,20 @@ data class ConnectRequest(
     val password: String? = null,
     val privateKeyPath: String? = null,
     val privateKeyPassphrase: String? = null,
+    val proxyJump: String? = null,
+    val proxyJumpCredentials: Map<String, JumpCredential> = emptyMap(),
+    val portForwards: List<PortForwardRule> = emptyList(),
     val hostKeyPolicy: HostKeyPolicy = HostKeyPolicy.STRICT,
     val termType: String = "xterm-256color",
     val cols: Int,
     val rows: Int,
+)
+
+data class JumpCredential(
+    val username: String,
+    val password: String? = null,
+    val privateKeyPath: String? = null,
+    val privateKeyPassphrase: String? = null,
 )
 
 enum class HostKeyPolicy {
