@@ -2,6 +2,7 @@ package com.opencode.sshterminal.ui.connection
 
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,19 +81,36 @@ fun ConnectionListScreen(
     var deleteTarget by remember { mutableStateOf<ConnectionProfile?>(null) }
     var showQuickConnectDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    val filteredProfiles =
-        remember(profiles, searchQuery) {
-            val query = searchQuery.trim()
-            if (query.isBlank()) {
+    var selectedGroupFilter by remember { mutableStateOf<String?>(null) }
+    var sortOption by remember { mutableStateOf(ConnectionSortOption.NAME) }
+    val availableGroupFilters =
+        remember(profiles) {
+            val namedGroups =
                 profiles
-            } else {
-                profiles.filter { profile ->
-                    profile.name.contains(query, ignoreCase = true) ||
-                        profile.group.orEmpty().contains(query, ignoreCase = true) ||
-                        profile.host.contains(query, ignoreCase = true) ||
-                        profile.username.contains(query, ignoreCase = true)
+                    .mapNotNull { profile ->
+                        profile.group?.trim()?.takeIf { group -> group.isNotEmpty() }
+                    }.distinct()
+                    .sortedBy { group -> group.lowercase() }
+            buildList {
+                if (profiles.any { profile -> profile.group.isNullOrBlank() }) {
+                    add(UNGROUPED_FILTER_KEY)
                 }
+                addAll(namedGroups)
             }
+        }
+    LaunchedEffect(availableGroupFilters) {
+        if (selectedGroupFilter != null && selectedGroupFilter !in availableGroupFilters) {
+            selectedGroupFilter = null
+        }
+    }
+    val filteredProfiles =
+        remember(profiles, searchQuery, selectedGroupFilter, sortOption) {
+            filterAndSortProfiles(
+                profiles = profiles,
+                searchQuery = searchQuery,
+                selectedGroupFilter = selectedGroupFilter,
+                sortOption = sortOption,
+            )
         }
     val sshConfigPicker =
         rememberConnectionSshConfigPicker(
@@ -155,6 +174,11 @@ fun ConnectionListScreen(
             profiles = filteredProfiles,
             searchQuery = searchQuery,
             onSearchQueryChange = { searchQuery = it },
+            availableGroupFilters = availableGroupFilters,
+            selectedGroupFilter = selectedGroupFilter,
+            onSelectGroupFilter = { selectedGroupFilter = it },
+            sortOption = sortOption,
+            onSelectSortOption = { sortOption = it },
             onConnect = onConnect,
             onEdit = { profile ->
                 editingProfile = profile
@@ -208,6 +232,11 @@ private fun ConnectionListContent(
     profiles: List<ConnectionProfile>,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
+    availableGroupFilters: List<String>,
+    selectedGroupFilter: String?,
+    onSelectGroupFilter: (String?) -> Unit,
+    sortOption: ConnectionSortOption,
+    onSelectSortOption: (ConnectionSortOption) -> Unit,
     onConnect: (connectionId: String) -> Unit,
     onEdit: (ConnectionProfile) -> Unit,
     onDelete: (ConnectionProfile) -> Unit,
@@ -221,6 +250,11 @@ private fun ConnectionListContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         val ungroupedLabel = stringResource(R.string.connection_group_ungrouped)
+        val allGroupsLabel = stringResource(R.string.connection_filter_all_groups)
+        val sortLabel = stringResource(R.string.connection_sort_label)
+        val groupsLabel = stringResource(R.string.connection_filter_groups_label)
+        val sortNameLabel = stringResource(R.string.connection_sort_name)
+        val sortRecentLabel = stringResource(R.string.connection_sort_recent)
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
@@ -229,6 +263,21 @@ private fun ConnectionListContent(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (allProfiles.isNotEmpty()) {
+            ConnectionListFiltersBar(
+                availableGroupFilters = availableGroupFilters,
+                selectedGroupFilter = selectedGroupFilter,
+                ungroupedLabel = ungroupedLabel,
+                allGroupsLabel = allGroupsLabel,
+                groupsLabel = groupsLabel,
+                sortLabel = sortLabel,
+                sortNameLabel = sortNameLabel,
+                sortRecentLabel = sortRecentLabel,
+                sortOption = sortOption,
+                onSelectGroupFilter = onSelectGroupFilter,
+                onSelectSortOption = onSelectSortOption,
+            )
+        }
 
         when {
             allProfiles.isEmpty() -> {
@@ -247,21 +296,14 @@ private fun ConnectionListContent(
                 }
             }
             else -> {
-                val sortedProfiles =
-                    profiles.sortedWith(
-                        compareBy(
-                            { profile -> profile.group.orEmpty().lowercase() },
-                            { profile -> profile.name.lowercase() },
-                        ),
-                    )
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    itemsIndexed(sortedProfiles, key = { _, profile -> profile.id }) { index, profile ->
+                    itemsIndexed(profiles, key = { _, profile -> profile.id }) { index, profile ->
                         val currentGroup = profile.group?.takeIf { it.isNotBlank() } ?: ungroupedLabel
                         val previousGroup =
-                            sortedProfiles
+                            profiles
                                 .getOrNull(index - 1)
                                 ?.group
                                 ?.takeIf { it.isNotBlank() } ?: ungroupedLabel
@@ -282,6 +324,107 @@ private fun ConnectionListContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ConnectionListFiltersBar(
+    availableGroupFilters: List<String>,
+    selectedGroupFilter: String?,
+    ungroupedLabel: String,
+    allGroupsLabel: String,
+    groupsLabel: String,
+    sortLabel: String,
+    sortNameLabel: String,
+    sortRecentLabel: String,
+    sortOption: ConnectionSortOption,
+    onSelectGroupFilter: (String?) -> Unit,
+    onSelectSortOption: (ConnectionSortOption) -> Unit,
+) {
+    var sortExpanded by remember { mutableStateOf(false) }
+    val selectedSortLabel =
+        when (sortOption) {
+            ConnectionSortOption.NAME -> sortNameLabel
+            ConnectionSortOption.RECENT -> sortRecentLabel
+        }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = groupsLabel,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Box {
+            OutlinedButton(onClick = { sortExpanded = true }) {
+                Text("$sortLabel: $selectedSortLabel")
+            }
+            DropdownMenu(
+                expanded = sortExpanded,
+                onDismissRequest = { sortExpanded = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text(sortNameLabel) },
+                    onClick = {
+                        sortExpanded = false
+                        onSelectSortOption(ConnectionSortOption.NAME)
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(sortRecentLabel) },
+                    onClick = {
+                        sortExpanded = false
+                        onSelectSortOption(ConnectionSortOption.RECENT)
+                    },
+                )
+            }
+        }
+    }
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        ConnectionGroupFilterButton(
+            label = allGroupsLabel,
+            selected = selectedGroupFilter == null,
+            onClick = { onSelectGroupFilter(null) },
+        )
+        availableGroupFilters.forEach { groupFilter ->
+            val label = if (groupFilter == UNGROUPED_FILTER_KEY) ungroupedLabel else groupFilter
+            ConnectionGroupFilterButton(
+                label = label,
+                selected = selectedGroupFilter == groupFilter,
+                onClick = { onSelectGroupFilter(groupFilter) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ConnectionGroupFilterButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+    ) {
+        Text(
+            text = label,
+            color =
+                if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+        )
     }
 }
 
