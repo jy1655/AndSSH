@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.opencode.sshterminal.R
 import com.opencode.sshterminal.data.ConnectionProfile
+import com.opencode.sshterminal.data.TerminalCommandHistoryEntry
 import com.opencode.sshterminal.data.TerminalSnippet
 import com.opencode.sshterminal.session.HostKeyAlert
 import com.opencode.sshterminal.session.SessionSnapshot
@@ -69,6 +70,7 @@ fun TerminalScreen(
     val activeSnapshot by viewModel.activeSnapshot.collectAsState()
     val profiles by viewModel.profiles.collectAsState()
     val snippets by viewModel.snippets.collectAsState()
+    val commandHistory by viewModel.commandHistory.collectAsState()
     val terminalColorSchemeId by viewModel.terminalColorSchemeId.collectAsState()
     val terminalFontId by viewModel.terminalFont.collectAsState()
     val terminalHapticFeedbackEnabled by viewModel.terminalHapticFeedbackEnabled.collectAsState()
@@ -76,6 +78,7 @@ fun TerminalScreen(
     var hadTabs by remember { mutableStateOf(false) }
     var showConnectionPicker by remember { mutableStateOf(false) }
     var showSnippetSheet by remember { mutableStateOf(false) }
+    var showHistorySheet by remember { mutableStateOf(false) }
     var pageUpCount by remember { mutableStateOf(0) }
     var pageDownCount by remember { mutableStateOf(0) }
     val context = LocalContext.current
@@ -122,6 +125,7 @@ fun TerminalScreen(
             onNavigateToSftp = onNavigateToSftp,
             onShowConnectionPicker = { showConnectionPicker = true },
             onShowSnippets = { showSnippetSheet = true },
+            onShowHistory = { showHistorySheet = true },
             onPageScroll = { direction ->
                 val handledRemotely = viewModel.handlePageScroll(direction)
                 if (!handledRemotely) {
@@ -133,8 +137,10 @@ fun TerminalScreen(
         TerminalDialogsState(
             showConnectionPicker = showConnectionPicker,
             showSnippetSheet = showSnippetSheet,
+            showHistorySheet = showHistorySheet,
             profiles = profiles,
             snippets = snippets,
+            commandHistory = commandHistory,
             hostKeyAlert = activeSnapshot?.hostKeyAlert,
         )
     val dialogCallbacks =
@@ -154,6 +160,13 @@ fun TerminalScreen(
                 showSnippetSheet = false
                 viewModel.runSnippet(command)
             },
+            onDismissHistorySheet = { showHistorySheet = false },
+            onRunHistoryCommand = { command ->
+                showHistorySheet = false
+                viewModel.runHistoryCommand(command)
+            },
+            onDeleteHistoryCommand = viewModel::deleteHistoryCommand,
+            onClearHistory = viewModel::clearCommandHistory,
         )
 
     TerminalScaffold(
@@ -183,6 +196,7 @@ private data class TerminalScreenCallbacks(
     val onNavigateToSftp: (connectionId: String) -> Unit,
     val onShowConnectionPicker: () -> Unit,
     val onShowSnippets: () -> Unit,
+    val onShowHistory: () -> Unit,
     val onPageScroll: (Int) -> Unit,
 )
 
@@ -190,15 +204,19 @@ private data class TerminalMainCallbacks(
     val onOpenDrawer: () -> Unit,
     val onShowConnectionPicker: () -> Unit,
     val onShowSnippets: () -> Unit,
+    val onShowHistory: () -> Unit,
     val onPageScroll: (Int) -> Unit,
     val onCopyText: (String) -> Unit,
+    val onSubmitCommand: (String) -> Unit,
 )
 
 private data class TerminalDialogsState(
     val showConnectionPicker: Boolean,
     val showSnippetSheet: Boolean,
+    val showHistorySheet: Boolean,
     val profiles: List<ConnectionProfile>,
     val snippets: List<TerminalSnippet>,
+    val commandHistory: List<TerminalCommandHistoryEntry>,
     val hostKeyAlert: HostKeyAlert?,
 )
 
@@ -212,6 +230,10 @@ private data class TerminalDialogsCallbacks(
     val onSaveSnippet: (existingSnippetId: String?, title: String, command: String) -> Unit,
     val onDeleteSnippet: (snippetId: String) -> Unit,
     val onRunSnippet: (command: String) -> Unit,
+    val onDismissHistorySheet: () -> Unit,
+    val onRunHistoryCommand: (command: String) -> Unit,
+    val onDeleteHistoryCommand: (command: String) -> Unit,
+    val onClearHistory: () -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -247,8 +269,10 @@ private fun TerminalScaffold(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onShowConnectionPicker = callbacks.onShowConnectionPicker,
                     onShowSnippets = callbacks.onShowSnippets,
+                    onShowHistory = callbacks.onShowHistory,
                     onPageScroll = callbacks.onPageScroll,
                     onCopyText = { text -> viewModel.copyToClipboard(clipboardLabel, text) },
+                    onSubmitCommand = viewModel::recordCommand,
                 ),
         )
     }
@@ -315,6 +339,8 @@ private fun TerminalMainColumn(
             onSendBytes = viewModel::sendInput,
             onMenuClick = callbacks.onOpenDrawer,
             onSnippetClick = callbacks.onShowSnippets,
+            onHistoryClick = callbacks.onShowHistory,
+            onSubmitCommand = callbacks.onSubmitCommand,
             onPageScroll = callbacks.onPageScroll,
             isHapticFeedbackEnabled = model.terminalHapticFeedbackEnabled,
             focusSignal = imeFocusSignal,
@@ -343,6 +369,16 @@ private fun TerminalScreenDialogs(
             onSaveSnippet = callbacks.onSaveSnippet,
             onRunSnippet = { snippet -> callbacks.onRunSnippet(snippet.command) },
             onDeleteSnippet = { snippet -> callbacks.onDeleteSnippet(snippet.id) },
+        )
+    }
+
+    if (state.showHistorySheet) {
+        TerminalCommandHistorySheet(
+            history = state.commandHistory,
+            onDismiss = callbacks.onDismissHistorySheet,
+            onRunCommand = callbacks.onRunHistoryCommand,
+            onDeleteCommand = callbacks.onDeleteHistoryCommand,
+            onClearHistory = callbacks.onClearHistory,
         )
     }
 

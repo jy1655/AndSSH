@@ -48,12 +48,14 @@ fun TerminalInputBar(
     onSendBytes: (ByteArray) -> Unit,
     onMenuClick: (() -> Unit)? = null,
     onSnippetClick: (() -> Unit)? = null,
+    onHistoryClick: (() -> Unit)? = null,
+    onSubmitCommand: (String) -> Unit = {},
     onPageScroll: ((Int) -> Unit)? = null,
     isHapticFeedbackEnabled: Boolean = true,
     focusSignal: Int = 0,
     modifier: Modifier = Modifier,
 ) {
-    val controller = rememberTerminalInputController(onSendBytes)
+    val controller = rememberTerminalInputController(onSendBytes, onSubmitCommand)
     val hapticFeedback = LocalHapticFeedback.current
     val onKeyTap =
         remember(hapticFeedback, isHapticFeedbackEnabled) {
@@ -68,6 +70,7 @@ fun TerminalInputBar(
         TerminalShortcutActions(
             onMenuClick = onMenuClick,
             onSnippetClick = onSnippetClick,
+            onHistoryClick = onHistoryClick,
             onPageScroll = onPageScroll,
             onToggleCtrl = controller::toggleCtrl,
             onToggleAlt = controller::toggleAlt,
@@ -115,6 +118,7 @@ private data class TerminalModifierState(
 private data class TerminalShortcutActions(
     val onMenuClick: (() -> Unit)?,
     val onSnippetClick: (() -> Unit)?,
+    val onHistoryClick: (() -> Unit)?,
     val onPageScroll: ((Int) -> Unit)?,
     val onToggleCtrl: () -> Unit,
     val onToggleAlt: () -> Unit,
@@ -145,6 +149,13 @@ private fun TerminalShortcutRow(
                 label = stringResource(R.string.terminal_snippets_short),
                 onTap = onKeyTap,
                 onClick = onSnippetClick,
+            )
+        }
+        actions.onHistoryClick?.let { onHistoryClick ->
+            KeyChip(
+                label = stringResource(R.string.terminal_history_short),
+                onTap = onKeyTap,
+                onClick = onHistoryClick,
             )
         }
         KeyChip("ESC", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ESC) }

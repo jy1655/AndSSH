@@ -106,6 +106,10 @@
     <string name="terminal_copy">복사</string>
     <string name="terminal_paste">붙여넣기</string>
     <string name="terminal_snippets_short">스니펫</string>
+    <string name="terminal_history_short">히스토리</string>
+    <string name="terminal_history_title">명령어 히스토리</string>
+    <string name="terminal_history_empty">최근 명령어가 없습니다</string>
+    <string name="terminal_history_clear">전체 삭제</string>
     <string name="terminal_snippets_title">명령어 스니펫</string>
     <string name="terminal_snippet_search_label">스니펫 검색</string>
     <string name="terminal_snippet_search_placeholder">제목 또는 명령어로 검색</string>
