@@ -42,6 +42,8 @@ data class ConnectRequest(
     val forwardAgent: Boolean = false,
     val proxyJump: String? = null,
     val proxyJumpCredentials: Map<String, JumpCredential> = emptyMap(),
+    val portKnockSequence: List<Int> = emptyList(),
+    val portKnockDelayMillis: Int = 250,
     val portForwards: List<PortForwardRule> = emptyList(),
     val environmentVariables: Map<String, String> = emptyMap(),
     val keepaliveIntervalSeconds: Int = 15,

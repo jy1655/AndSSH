@@ -583,6 +583,8 @@ private data class ConnectionDraft(
     val environmentVariablesInput: String = "",
     val host: String = "",
     val proxyJump: String = "",
+    val portKnockSequenceInput: String = "",
+    val portKnockDelayMillis: String = "250",
     val forwardAgent: Boolean = false,
     val port: String = "22",
     val username: String = "",
@@ -604,6 +606,8 @@ private fun ConnectionProfile?.toDraft(): ConnectionDraft =
         environmentVariablesInput = formatEnvironmentVariablesInput(this?.environmentVariables.orEmpty()),
         host = this?.host.orEmpty(),
         proxyJump = this?.proxyJump.orEmpty(),
+        portKnockSequenceInput = formatPortKnockSequenceInput(this?.portKnockSequence.orEmpty()),
+        portKnockDelayMillis = this?.portKnockDelayMillis?.toString() ?: "250",
         forwardAgent = this?.forwardAgent ?: false,
         port = this?.port?.toString() ?: "22",
         username = this?.username.orEmpty(),
@@ -627,6 +631,8 @@ private fun ConnectionDraft.toProfileOrNull(
     val filteredProxyJumpIdentityIds = proxyJumpIdentityIds.filterKeys { key -> key in validHopKeys }
     val parsedEnvironmentVariables = parseEnvironmentVariablesInput(environmentVariablesInput)
     val parsedTags = parseConnectionTagsInput(tagsInput)
+    val parsedPortKnockSequence = parsePortKnockSequenceInput(portKnockSequenceInput)
+    val parsedPortKnockDelayMillis = portKnockDelayMillis.toIntOrNull()?.coerceIn(50, 5_000) ?: 250
     return ConnectionProfile(
         id = initial?.id ?: UUID.randomUUID().toString(),
         name = name.ifBlank { "$username@$host" },
@@ -639,6 +645,8 @@ private fun ConnectionDraft.toProfileOrNull(
         host = host,
         proxyJump = proxyJump.trim().ifBlank { null },
         forwardAgent = forwardAgent,
+        portKnockSequence = parsedPortKnockSequence,
+        portKnockDelayMillis = parsedPortKnockDelayMillis,
         port = port.toIntOrNull()?.takeIf { it in 1..65535 } ?: 22,
         username = username,
         password = password.ifBlank { null },
@@ -659,6 +667,9 @@ private fun connectionRouteSummary(profile: ConnectionProfile): String? {
     if (!profile.proxyJump.isNullOrBlank()) {
         val hops = parseProxyJumpEntries(profile.proxyJump).size
         routeTags += if (hops > 0) "PJ:$hops" else "PJ"
+    }
+    if (profile.portKnockSequence.isNotEmpty()) {
+        routeTags += "KNOCK:${profile.portKnockSequence.size}"
     }
     if (profile.portForwards.isNotEmpty()) {
         routeTags += "FWD:${profile.portForwards.size}"
@@ -884,6 +895,25 @@ private fun ConnectionFormFields(
         },
         label = { Text(stringResource(R.string.connection_label_proxy_jump_optional)) },
         placeholder = { Text(stringResource(R.string.connection_proxy_jump_placeholder)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.portKnockSequenceInput,
+        onValueChange = { value ->
+            onDraftChange(draft.copy(portKnockSequenceInput = value))
+        },
+        label = { Text(stringResource(R.string.connection_label_port_knock_sequence_optional)) },
+        placeholder = { Text(stringResource(R.string.connection_port_knock_sequence_placeholder)) },
+        maxLines = 2,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.portKnockDelayMillis,
+        onValueChange = { value ->
+            onDraftChange(draft.copy(portKnockDelayMillis = value))
+        },
+        label = { Text(stringResource(R.string.connection_label_port_knock_delay_ms)) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )

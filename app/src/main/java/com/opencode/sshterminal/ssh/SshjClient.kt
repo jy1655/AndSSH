@@ -50,9 +50,11 @@ import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
+@Suppress("LargeClass")
 class SshjClient : SshClient {
     override suspend fun connect(request: ConnectRequest): SshSession =
         withContext(Dispatchers.IO) {
+            executePortKnockSequence(request)
             val jumpHosts = parseProxyJump(request.proxyJump, request.username)
             val relayClients = mutableListOf<SSHClient>()
             var upstreamClient: SSHClient? = null
@@ -122,6 +124,42 @@ class SshjClient : SshClient {
                 }
             }
         }
+
+    private fun executePortKnockSequence(request: ConnectRequest) {
+        if (request.portKnockSequence.isEmpty()) return
+        val delayMs = request.portKnockDelayMillis.coerceIn(MIN_PORT_KNOCK_DELAY_MS, MAX_PORT_KNOCK_DELAY_MS)
+        request.portKnockSequence.forEachIndexed { index, knockPort ->
+            runCatching {
+                Socket().use { socket ->
+                    socket.connect(
+                        InetSocketAddress(request.host, knockPort),
+                        PORT_KNOCK_CONNECT_TIMEOUT_MS,
+                    )
+                }
+            }.onSuccess {
+                Log.i(
+                    TAG,
+                    "Port knock ${index + 1}/${request.portKnockSequence.size} sent to ${request.host}:$knockPort",
+                )
+            }.onFailure { error ->
+                val errorType = error.javaClass.simpleName
+                val target = "${request.host}:$knockPort"
+                val progress = "${index + 1}/${request.portKnockSequence.size}"
+                Log.i(
+                    TAG,
+                    "Port knock $progress to $target returned $errorType",
+                )
+            }
+            if (index < request.portKnockSequence.lastIndex && delayMs > 0) {
+                try {
+                    Thread.sleep(delayMs.toLong())
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IOException("Port knock interrupted", interrupted)
+                }
+            }
+        }
+    }
 
     private fun ConnectRequest.withJumpCredentialOverride(jumpTarget: JumpTarget): ConnectRequest {
         val key = proxyJumpHostPortKey(jumpTarget.host, jumpTarget.port)
@@ -894,6 +932,9 @@ class SshjClient : SshClient {
         private const val DEFAULT_REMOTE_FORWARD_BIND_HOST = "127.0.0.1"
         private const val DYNAMIC_FORWARD_HANDSHAKE_TIMEOUT_MS = 15_000
         private const val DEFAULT_AGENT_FORWARD_TIMEOUT_MS = 15_000
+        private const val PORT_KNOCK_CONNECT_TIMEOUT_MS = 1_500
+        private const val MIN_PORT_KNOCK_DELAY_MS = 50
+        private const val MAX_PORT_KNOCK_DELAY_MS = 5_000
         private const val SSH_AGENT_CHANNEL_TYPE = "auth-agent@openssh.com"
         private const val SSH_AGENT_REQUEST_TYPE = "auth-agent-req@openssh.com"
         private const val SSH_AGENT_MAX_PACKET_SIZE = 262_144
