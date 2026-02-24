@@ -77,6 +77,7 @@ fun TerminalScreen(
     val terminalFontSizeSp by viewModel.terminalFontSizeSp.collectAsState()
     val terminalHapticFeedbackEnabled by viewModel.terminalHapticFeedbackEnabled.collectAsState()
     val terminalCursorStyle by viewModel.terminalCursorStyle.collectAsState()
+    val terminalShortcutLayout by viewModel.terminalShortcutLayout.collectAsState()
     var hadTabs by remember { mutableStateOf(false) }
     var showConnectionPicker by remember { mutableStateOf(false) }
     var showSnippetSheet by remember { mutableStateOf(false) }
@@ -123,6 +124,7 @@ fun TerminalScreen(
             terminalFontSizeSp = terminalFontSizeSp,
             terminalHapticFeedbackEnabled = terminalHapticFeedbackEnabled,
             terminalCursorStyle = terminalCursorStyle,
+            terminalShortcutLayout = terminalShortcutLayout,
             isFocusMode = isFocusMode,
         )
     val screenCallbacks =
@@ -197,6 +199,7 @@ private data class TerminalScreenModel(
     val terminalFontSizeSp: Int,
     val terminalHapticFeedbackEnabled: Boolean,
     val terminalCursorStyle: Int,
+    val terminalShortcutLayout: String,
     val isFocusMode: Boolean,
 )
 
@@ -360,6 +363,7 @@ private fun TerminalMainColumn(
             onSubmitCommand = callbacks.onSubmitCommand,
             onPageScroll = callbacks.onPageScroll,
             isHapticFeedbackEnabled = model.terminalHapticFeedbackEnabled,
+            shortcutLayout = model.terminalShortcutLayout,
             showShortcutRow = !model.isFocusMode,
             focusSignal = imeFocusSignal,
             modifier = Modifier.fillMaxWidth(),

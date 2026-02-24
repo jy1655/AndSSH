@@ -72,6 +72,11 @@ class SettingsRepository
                 prefs[TERMINAL_CURSOR_STYLE_KEY] ?: DEFAULT_TERMINAL_CURSOR_STYLE
             }
 
+        val terminalShortcutLayout: Flow<String> =
+            dataStore.data.map { prefs ->
+                prefs[TERMINAL_SHORTCUT_LAYOUT_KEY] ?: DEFAULT_TERMINAL_SHORTCUT_LAYOUT
+            }
+
         suspend fun setLanguageTag(tag: String) {
             dataStore.edit { prefs -> prefs[LANGUAGE_TAG_KEY] = tag }
         }
@@ -118,6 +123,15 @@ class SettingsRepository
             dataStore.edit { prefs -> prefs[TERMINAL_CURSOR_STYLE_KEY] = style }
         }
 
+        suspend fun setTerminalShortcutLayout(layout: String) {
+            dataStore.edit { prefs ->
+                prefs[TERMINAL_SHORTCUT_LAYOUT_KEY] =
+                    serializeTerminalShortcutLayout(
+                        parseTerminalShortcutLayout(layout),
+                    )
+            }
+        }
+
         companion object {
             private val LANGUAGE_TAG_KEY = stringPreferencesKey("pref_language_tag")
             private val THEME_PRESET_KEY = stringPreferencesKey("pref_theme_preset")
@@ -128,8 +142,10 @@ class SettingsRepository
             private val TERMINAL_FONT_SIZE_SP_KEY = intPreferencesKey("pref_terminal_font_size_sp")
             private val SSH_KEEPALIVE_INTERVAL_SECONDS_KEY = intPreferencesKey("pref_ssh_keepalive_interval_seconds")
             private val SCREENSHOT_PROTECTION_ENABLED_KEY = booleanPreferencesKey("pref_screenshot_protection_enabled")
-            private val TERMINAL_HAPTIC_FEEDBACK_ENABLED_KEY = booleanPreferencesKey("pref_terminal_haptic_feedback_enabled")
+            private val TERMINAL_HAPTIC_FEEDBACK_ENABLED_KEY =
+                booleanPreferencesKey("pref_terminal_haptic_feedback_enabled")
             private val TERMINAL_CURSOR_STYLE_KEY = intPreferencesKey("pref_terminal_cursor_style")
+            private val TERMINAL_SHORTCUT_LAYOUT_KEY = stringPreferencesKey("pref_terminal_shortcut_layout")
             const val DEFAULT_LANGUAGE_TAG = ""
             const val DEFAULT_THEME_PRESET = "green"
             const val DEFAULT_CLIPBOARD_TIMEOUT = 30

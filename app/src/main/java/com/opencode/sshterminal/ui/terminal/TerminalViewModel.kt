@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionRepository
+import com.opencode.sshterminal.data.DEFAULT_TERMINAL_SHORTCUT_LAYOUT
 import com.opencode.sshterminal.data.SettingsRepository
 import com.opencode.sshterminal.data.TerminalCommandHistoryEntry
 import com.opencode.sshterminal.data.TerminalCommandHistoryRepository
@@ -147,6 +148,14 @@ class TerminalViewModel
                     viewModelScope,
                     SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
                     SettingsRepository.DEFAULT_TERMINAL_CURSOR_STYLE,
+                )
+
+        val terminalShortcutLayout: StateFlow<String> =
+            settingsRepository.terminalShortcutLayout
+                .stateIn(
+                    viewModelScope,
+                    SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
+                    DEFAULT_TERMINAL_SHORTCUT_LAYOUT,
                 )
 
         init {

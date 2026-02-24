@@ -42,8 +42,11 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.opencode.sshterminal.R
+import com.opencode.sshterminal.data.TerminalShortcutLayoutItem
+import com.opencode.sshterminal.data.parseTerminalShortcutLayout
 
 @Composable
+@Suppress("LongParameterList")
 fun TerminalInputBar(
     onSendBytes: (ByteArray) -> Unit,
     onMenuClick: (() -> Unit)? = null,
@@ -52,6 +55,7 @@ fun TerminalInputBar(
     onSubmitCommand: (String) -> Unit = {},
     onPageScroll: ((Int) -> Unit)? = null,
     isHapticFeedbackEnabled: Boolean = true,
+    shortcutLayout: String,
     showShortcutRow: Boolean = true,
     focusSignal: Int = 0,
     modifier: Modifier = Modifier,
@@ -100,6 +104,7 @@ fun TerminalInputBar(
                     actions = shortcutActions,
                     onSendBytes = onSendBytes,
                     onKeyTap = onKeyTap,
+                    shortcutLayout = shortcutLayout,
                 )
             }
             TerminalTextInputRow(
@@ -134,8 +139,10 @@ private fun TerminalShortcutRow(
     actions: TerminalShortcutActions,
     onSendBytes: (ByteArray) -> Unit,
     onKeyTap: () -> Unit,
+    shortcutLayout: String,
 ) {
     val context = LocalContext.current
+    val shortcutLayoutItems = remember(shortcutLayout) { parseTerminalShortcutLayout(shortcutLayout) }
     Row(
         modifier =
             Modifier
@@ -144,42 +151,116 @@ private fun TerminalShortcutRow(
         horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        actions.onMenuClick?.let { onMenuClick ->
-            KeyChip("\u2630", onTap = onKeyTap, onClick = onMenuClick)
-        }
-        actions.onSnippetClick?.let { onSnippetClick ->
-            KeyChip(
-                label = stringResource(R.string.terminal_snippets_short),
-                onTap = onKeyTap,
-                onClick = onSnippetClick,
+        shortcutLayoutItems.forEach { item ->
+            ShortcutLayoutChip(
+                item = item,
+                state = state,
+                actions = actions,
+                onSendBytes = onSendBytes,
+                onKeyTap = onKeyTap,
+                context = context,
             )
         }
-        actions.onHistoryClick?.let { onHistoryClick ->
-            KeyChip(
-                label = stringResource(R.string.terminal_history_short),
-                onTap = onKeyTap,
-                onClick = onHistoryClick,
-            )
+    }
+}
+
+@Composable
+@Suppress("LongParameterList", "LongMethod", "CyclomaticComplexMethod")
+private fun ShortcutLayoutChip(
+    item: TerminalShortcutLayoutItem,
+    state: TerminalModifierState,
+    actions: TerminalShortcutActions,
+    onSendBytes: (ByteArray) -> Unit,
+    onKeyTap: () -> Unit,
+    context: Context,
+) {
+    when (item) {
+        TerminalShortcutLayoutItem.MENU -> {
+            actions.onMenuClick?.let { onMenuClick ->
+                KeyChip("\u2630", onTap = onKeyTap, onClick = onMenuClick)
+            }
         }
-        KeyChip("ESC", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ESC) }
-        KeyChip("TAB", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.TAB) }
-        ToggleKeyChip("Ctrl", state.ctrlArmed, onTap = onKeyTap, onClick = actions.onToggleCtrl)
-        ToggleKeyChip("Alt", state.altArmed, onTap = onKeyTap, onClick = actions.onToggleAlt)
-        KeyChip("\u2191", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ARROW_UP) }
-        KeyChip("\u2193", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ARROW_DOWN) }
-        KeyChip("\u2190", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ARROW_LEFT) }
-        KeyChip("\u2192", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ARROW_RIGHT) }
-        KeyChip("\u232B", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.BACKSPACE) }
-        KeyChip("PgUp", onTap = onKeyTap) { actions.onPageScroll?.invoke(1) }
-        KeyChip("PgDn", onTap = onKeyTap) { actions.onPageScroll?.invoke(-1) }
-        KeyChip("^C", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.CTRL_C) }
-        KeyChip("^D", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.CTRL_D) }
-        KeyChip(stringResource(R.string.terminal_paste), onTap = onKeyTap) {
-            val clipboard =
-                context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            val text = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
-            if (!text.isNullOrEmpty()) {
-                onSendBytes(text.toByteArray(Charsets.UTF_8))
+
+        TerminalShortcutLayoutItem.SNIPPETS -> {
+            actions.onSnippetClick?.let { onSnippetClick ->
+                KeyChip(
+                    label = stringResource(R.string.terminal_snippets_short),
+                    onTap = onKeyTap,
+                    onClick = onSnippetClick,
+                )
+            }
+        }
+
+        TerminalShortcutLayoutItem.HISTORY -> {
+            actions.onHistoryClick?.let { onHistoryClick ->
+                KeyChip(
+                    label = stringResource(R.string.terminal_history_short),
+                    onTap = onKeyTap,
+                    onClick = onHistoryClick,
+                )
+            }
+        }
+
+        TerminalShortcutLayoutItem.ESC -> {
+            KeyChip("ESC", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ESC) }
+        }
+
+        TerminalShortcutLayoutItem.TAB -> {
+            KeyChip("TAB", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.TAB) }
+        }
+
+        TerminalShortcutLayoutItem.CTRL -> {
+            ToggleKeyChip("Ctrl", state.ctrlArmed, onTap = onKeyTap, onClick = actions.onToggleCtrl)
+        }
+
+        TerminalShortcutLayoutItem.ALT -> {
+            ToggleKeyChip("Alt", state.altArmed, onTap = onKeyTap, onClick = actions.onToggleAlt)
+        }
+
+        TerminalShortcutLayoutItem.ARROW_UP -> {
+            KeyChip("\u2191", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ARROW_UP) }
+        }
+
+        TerminalShortcutLayoutItem.ARROW_DOWN -> {
+            KeyChip("\u2193", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ARROW_DOWN) }
+        }
+
+        TerminalShortcutLayoutItem.ARROW_LEFT -> {
+            KeyChip("\u2190", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ARROW_LEFT) }
+        }
+
+        TerminalShortcutLayoutItem.ARROW_RIGHT -> {
+            KeyChip("\u2192", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.ARROW_RIGHT) }
+        }
+
+        TerminalShortcutLayoutItem.BACKSPACE -> {
+            KeyChip("\u232B", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.BACKSPACE) }
+        }
+
+        TerminalShortcutLayoutItem.PAGE_UP -> {
+            KeyChip("PgUp", onTap = onKeyTap) { actions.onPageScroll?.invoke(1) }
+        }
+
+        TerminalShortcutLayoutItem.PAGE_DOWN -> {
+            KeyChip("PgDn", onTap = onKeyTap) { actions.onPageScroll?.invoke(-1) }
+        }
+
+        TerminalShortcutLayoutItem.CTRL_C -> {
+            KeyChip("^C", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.CTRL_C) }
+        }
+
+        TerminalShortcutLayoutItem.CTRL_D -> {
+            KeyChip("^D", onTap = onKeyTap) { actions.onShortcut(TerminalShortcut.CTRL_D) }
+        }
+
+        TerminalShortcutLayoutItem.PASTE -> {
+            KeyChip(stringResource(R.string.terminal_paste), onTap = onKeyTap) {
+                val clipboard =
+                    context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                val text = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
+                if (!text.isNullOrEmpty()) {
+                    onSendBytes(text.toByteArray(Charsets.UTF_8))
+                }
             }
         }
     }
