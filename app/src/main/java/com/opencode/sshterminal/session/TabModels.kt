@@ -28,6 +28,8 @@ internal class TabSession(
     var sshSession: SshSession? = null
     var connectJob: Job? = null
     var pendingHostKeyRequest: ConnectRequest? = null
+    var lastConnectRequest: ConnectRequest? = null
+    var lastAutoReconnectAtMillis: Long = 0L
     var lastCols: Int = 120
     var lastRows: Int = 40
 

@@ -217,6 +217,36 @@ class SessionManager
 
         fun updateKnownHostsAndReconnect() = connector.reconnectPendingHostKey(HostKeyPolicy.UPDATE_KNOWN_HOSTS)
 
+        fun reconnectTabsOnNetworkAvailable() {
+            val now = System.currentTimeMillis()
+            val reconnectTargets = mutableListOf<Pair<TabId, ConnectRequest>>()
+            synchronized(tabRegistry) {
+                tabOrder.forEach { tabId ->
+                    val tab = tabRegistry[tabId] ?: return@forEach
+                    val request = tab.lastConnectRequest ?: return@forEach
+                    val state = tab.snapshotFlow.value.state
+                    if (state != SessionState.DISCONNECTED && state != SessionState.FAILED) return@forEach
+                    if (tab.sshSession != null || tab.connectJob != null) return@forEach
+                    val cooldownElapsed = now - tab.lastAutoReconnectAtMillis >= AUTO_RECONNECT_DEBOUNCE_MS
+                    if (!cooldownElapsed) return@forEach
+                    tab.lastAutoReconnectAtMillis = now
+                    tab.pendingHostKeyRequest = null
+                    tab.snapshotFlow.value =
+                        tab.snapshotFlow.value.copy(
+                            state = SessionState.RECONNECTING,
+                            error = null,
+                            hostKeyAlert = null,
+                        )
+                    reconnectTargets += tabId to request
+                }
+            }
+            if (reconnectTargets.isEmpty()) return
+            refreshFlows()
+            reconnectTargets.forEach { (tabId, request) ->
+                connector.startConnect(tabId, request)
+            }
+        }
+
         private fun refreshFlows() {
             val activeId: TabId?
             val orderedTabs: List<TabSession>
@@ -240,5 +270,9 @@ class SessionManager
                 orderedTabs.any { tab ->
                     tab.snapshotFlow.value.state == SessionState.CONNECTED
                 }
+        }
+
+        companion object {
+            private const val AUTO_RECONNECT_DEBOUNCE_MS = 2_000L
         }
     }

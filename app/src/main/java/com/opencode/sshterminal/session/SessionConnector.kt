@@ -27,11 +27,18 @@ internal class SessionConnector(
         synchronized(tabRegistry) {
             val tab = tabRegistry[tabId] ?: return
             previousJob = tab.connectJob
+            val nextState =
+                if (tab.snapshotFlow.value.state == SessionState.RECONNECTING) {
+                    SessionState.RECONNECTING
+                } else {
+                    SessionState.CONNECTING
+                }
+            tab.lastConnectRequest = request
             tab.pendingHostKeyRequest = null
             tab.snapshotFlow.value =
                 SessionSnapshot(
                     sessionId = SessionId(),
-                    state = SessionState.CONNECTING,
+                    state = nextState,
                     host = request.host,
                     port = request.port,
                     username = request.username,
