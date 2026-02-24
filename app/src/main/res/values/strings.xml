@@ -62,6 +62,8 @@
     <string name="connection_port_forward_bind_port">Bind Port</string>
     <string name="connection_port_forward_target_host">Target Host</string>
     <string name="connection_port_forward_target_port">Target Port</string>
+    <string name="connection_move_up_short">Up</string>
+    <string name="connection_move_down_short">Down</string>
     <string name="connection_settings">Settings</string>
 
     <string name="terminal_new_tab">New tab</string>

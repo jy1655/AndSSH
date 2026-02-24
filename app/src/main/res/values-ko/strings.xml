@@ -62,6 +62,8 @@
     <string name="connection_port_forward_bind_port">바인드 포트</string>
     <string name="connection_port_forward_target_host">대상 호스트</string>
     <string name="connection_port_forward_target_port">대상 포트</string>
+    <string name="connection_move_up_short">위로</string>
+    <string name="connection_move_down_short">아래로</string>
     <string name="connection_settings">설정</string>
 
     <string name="terminal_new_tab">새 탭</string>
