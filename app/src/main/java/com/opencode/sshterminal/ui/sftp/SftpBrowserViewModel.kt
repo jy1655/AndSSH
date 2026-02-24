@@ -318,6 +318,70 @@ class SftpBrowserViewModel
             }
         }
 
+        fun loadPermissions(
+            remotePath: String,
+            onLoaded: (String?) -> Unit,
+        ) {
+            viewModelScope.launch {
+                runCatching {
+                    formatPermissionOctal(sftpAdapter.readPermissions(remotePath))
+                }.onSuccess { permissions ->
+                    onLoaded(permissions)
+                }.onFailure { t ->
+                    _uiState.value =
+                        _uiState.value.copy(
+                            status = context.getString(R.string.sftp_status_permissions_failed, t.message),
+                            busy = false,
+                        )
+                    onLoaded(null)
+                }
+            }
+        }
+
+        fun chmod(
+            remotePath: String,
+            octalText: String,
+        ) {
+            val permissions = parsePermissionOctal(octalText)
+            if (permissions == null) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        status = context.getString(R.string.sftp_status_invalid_permissions),
+                        busy = false,
+                    )
+                return
+            }
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(busy = true)
+                runCatching {
+                    sftpAdapter.chmod(remotePath, permissions)
+                    val currentPath = _uiState.value.remotePath
+                    val entries =
+                        sftpAdapter.list(currentPath)
+                            .sortedWith(
+                                compareByDescending<RemoteEntry> { it.isDirectory }
+                                    .thenBy { it.name.lowercase() },
+                            )
+                    _uiState.value =
+                        _uiState.value.copy(
+                            entries = entries,
+                            status =
+                                context.getString(
+                                    R.string.sftp_status_chmod_complete,
+                                    formatPermissionOctal(permissions),
+                                ),
+                            busy = false,
+                        )
+                }.onFailure { t ->
+                    _uiState.value =
+                        _uiState.value.copy(
+                            status = context.getString(R.string.sftp_status_chmod_failed, t.message),
+                            busy = false,
+                        )
+                }
+            }
+        }
+
         private fun resolveRemoteChildPath(name: String): String {
             val currentDir = _uiState.value.remotePath.trimEnd('/')
             return "$currentDir/$name"
@@ -349,3 +413,17 @@ internal fun isValidRemoteName(name: String): Boolean {
         '/' !in name &&
         '\\' !in name
 }
+
+internal fun parsePermissionOctal(input: String): Int? {
+    val normalized = input.trim()
+    if (!PERMISSION_OCTAL_REGEX.matches(normalized)) return null
+    return normalized.toIntOrNull(radix = 8)
+}
+
+internal fun formatPermissionOctal(mode: Int): String {
+    val normalized = mode and PERMISSION_MASK
+    return normalized.toString(radix = 8).padStart(3, '0')
+}
+
+private const val PERMISSION_MASK = 0x1FF
+private val PERMISSION_OCTAL_REGEX = Regex("^[0-7]{3}$")

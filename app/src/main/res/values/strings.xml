@@ -151,6 +151,8 @@
     <string name="sftp_open">Open</string>
     <string name="sftp_download">Download</string>
     <string name="sftp_rename">Rename</string>
+    <string name="sftp_permissions">Permissions</string>
+    <string name="sftp_permissions_placeholder">e.g. 644</string>
     <string name="sftp_delete">Delete</string>
     <string name="sftp_delete_selected">Delete Selected</string>
     <string name="sftp_delete_selected_message">Delete %1$d selected item(s)?</string>
@@ -179,6 +181,10 @@
     <string name="sftp_status_bulk_delete_partial">Deleted %1$d item(s), failed %2$d</string>
     <string name="sftp_status_invalid_new_name">Invalid new name</string>
     <string name="sftp_status_rename_failed">Rename failed: %1$s</string>
+    <string name="sftp_status_permissions_failed">Read permissions failed: %1$s</string>
+    <string name="sftp_status_invalid_permissions">Invalid permissions. Use 3-digit octal, e.g. 644.</string>
+    <string name="sftp_status_chmod_complete">Permissions updated to %1$s</string>
+    <string name="sftp_status_chmod_failed">chmod failed: %1$s</string>
 
     <string name="lock_title">Unlock App</string>
     <string name="lock_subtitle">Enter your master password to continue</string>

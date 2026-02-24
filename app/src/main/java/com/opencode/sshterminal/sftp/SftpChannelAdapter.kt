@@ -35,4 +35,11 @@ interface SftpChannelAdapter : Closeable {
         oldPath: String,
         newPath: String,
     )
+
+    suspend fun readPermissions(remotePath: String): Int
+
+    suspend fun chmod(
+        remotePath: String,
+        permissions: Int,
+    )
 }
