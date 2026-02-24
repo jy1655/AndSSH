@@ -15,6 +15,7 @@ Android native SSH terminal app scaffold focused on TTY-based remote CLI workflo
 - Android 14+/targetSdk 35 foreground service 권한 정리 (`FOREGROUND_SERVICE_DATA_SYNC`)
 - 터미널 렌더링 개선: Nerd Font 번들 적용 + truecolor(24-bit) 색상 처리
 - GitHub Actions CI: `assembleDebug` + `testDebugUnitTest`
+- CI artifacts: debug APK + unit test reports
 - Placeholder key repository interface for Keystore+AEAD implementation
 
 - 한글/CJK 입력 정상 처리 (IME composition 인식) + 전각 문자 렌더링
