@@ -71,6 +71,10 @@ class SessionManager
                     _activeTabId.value?.let { tabId -> tabRegistry[tabId]?.bridge }
                 } ?: fallbackBridge
 
+        fun bridgeForTab(tabId: TabId): TermuxTerminalBridge? {
+            return synchronized(tabRegistry) { tabRegistry[tabId]?.bridge }
+        }
+
         fun openTab(
             title: String,
             connectionId: String,
@@ -189,17 +193,25 @@ class SessionManager
             cols: Int,
             rows: Int,
         ) {
-            val activeTab: TabSession =
+            val tabId = _activeTabId.value ?: return
+            resizeTab(tabId, cols, rows)
+        }
+
+        fun resizeTab(
+            tabId: TabId,
+            cols: Int,
+            rows: Int,
+        ) {
+            val tab =
                 synchronized(tabRegistry) {
-                    val tabId = _activeTabId.value ?: return
-                    val tab = tabRegistry[tabId] ?: return
-                    tab.lastCols = cols
-                    tab.lastRows = rows
-                    tab
+                    val target = tabRegistry[tabId] ?: return
+                    target.lastCols = cols
+                    target.lastRows = rows
+                    target
                 }
-            activeTab.bridge.resize(cols, rows)
+            tab.bridge.resize(cols, rows)
             scope.launch {
-                activeTab.sshSession?.windowChange(cols, rows)
+                tab.sshSession?.windowChange(cols, rows)
             }
         }
 

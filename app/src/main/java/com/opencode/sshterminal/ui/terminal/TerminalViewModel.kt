@@ -346,6 +346,14 @@ class TerminalViewModel
             rows: Int,
         ) = sessionManager.resize(cols, rows)
 
+        fun resizeTab(
+            tabId: TabId,
+            cols: Int,
+            rows: Int,
+        ) = sessionManager.resizeTab(tabId, cols, rows)
+
+        fun bridgeForTab(tabId: TabId): TermuxTerminalBridge? = sessionManager.bridgeForTab(tabId)
+
         /**
          * Returns true when the scroll request was forwarded to the remote TUI.
          * Returns false when the UI should handle local scrollback instead.

@@ -61,6 +61,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Suppress("CyclomaticComplexMethod")
 fun TerminalScreen(
     onNavigateToSftp: (connectionId: String) -> Unit,
     onAllTabsClosed: () -> Unit,
@@ -83,6 +84,8 @@ fun TerminalScreen(
     var showSnippetSheet by remember { mutableStateOf(false) }
     var showHistorySheet by remember { mutableStateOf(false) }
     var isFocusMode by rememberSaveable { mutableStateOf(false) }
+    var isSplitViewEnabled by rememberSaveable { mutableStateOf(false) }
+    var secondaryTabIdValue by rememberSaveable { mutableStateOf<String?>(null) }
     var pageUpCount by remember { mutableStateOf(0) }
     var pageDownCount by remember { mutableStateOf(0) }
     val context = LocalContext.current
@@ -91,6 +94,27 @@ fun TerminalScreen(
     LaunchedEffect(tabs) {
         if (tabs.isNotEmpty()) hadTabs = true
         if (hadTabs && tabs.isEmpty()) onAllTabsClosed()
+    }
+
+    LaunchedEffect(isSplitViewEnabled, tabs, activeTabId) {
+        if (!isSplitViewEnabled) {
+            secondaryTabIdValue = null
+            return@LaunchedEffect
+        }
+        val resolvedSecondaryTabId =
+            resolveSecondaryTabId(
+                tabs = tabs,
+                activeTabId = activeTabId,
+                requestedSecondaryTabId = secondaryTabIdValue?.let(::TabId),
+            )
+        if (resolvedSecondaryTabId == null) {
+            isSplitViewEnabled = false
+            secondaryTabIdValue = null
+            return@LaunchedEffect
+        }
+        if (secondaryTabIdValue != resolvedSecondaryTabId.value) {
+            secondaryTabIdValue = resolvedSecondaryTabId.value
+        }
     }
 
     val activeTab = tabs.find { it.tabId == activeTabId }
@@ -112,6 +136,8 @@ fun TerminalScreen(
                 },
             ).orEmpty()
     val activeColorSchemeId = activeProfile?.terminalColorSchemeId ?: terminalColorSchemeId
+    val secondaryTabId = secondaryTabIdValue?.let(::TabId)
+    val splitCandidates = tabs.map { tab -> tab.tabId }.filter { tabId -> tabId != activeTabId }
     val screenModel =
         TerminalScreenModel(
             tabs = tabs,
@@ -125,6 +151,10 @@ fun TerminalScreen(
             terminalHapticFeedbackEnabled = terminalHapticFeedbackEnabled,
             terminalCursorStyle = terminalCursorStyle,
             terminalShortcutLayout = terminalShortcutLayout,
+            isSplitViewEnabled = isSplitViewEnabled,
+            secondaryTabId = secondaryTabId,
+            canSplitView = tabs.size > 1,
+            canCycleSplitPane = isSplitViewEnabled && splitCandidates.size > 1,
             isFocusMode = isFocusMode,
         )
     val screenCallbacks =
@@ -134,6 +164,27 @@ fun TerminalScreen(
             onShowSnippets = { showSnippetSheet = true },
             onShowHistory = { showHistorySheet = true },
             onToggleFocusMode = { isFocusMode = !isFocusMode },
+            onToggleSplitView = {
+                if (tabs.size >= 2) {
+                    isSplitViewEnabled = !isSplitViewEnabled
+                    if (!isSplitViewEnabled) {
+                        secondaryTabIdValue = null
+                    }
+                }
+            },
+            onCycleSplitPane = {
+                if (isSplitViewEnabled && splitCandidates.isNotEmpty()) {
+                    val currentIndex =
+                        splitCandidates.indexOfFirst { candidate -> candidate.value == secondaryTabIdValue }
+                    val nextIndex =
+                        if (currentIndex < 0 || currentIndex == splitCandidates.lastIndex) {
+                            0
+                        } else {
+                            currentIndex + 1
+                        }
+                    secondaryTabIdValue = splitCandidates[nextIndex].value
+                }
+            },
             onPageScroll = { direction ->
                 val handledRemotely = viewModel.handlePageScroll(direction)
                 if (!handledRemotely) {
@@ -188,6 +239,16 @@ fun TerminalScreen(
     TerminalScreenDialogs(state = dialogState, callbacks = dialogCallbacks)
 }
 
+private fun resolveSecondaryTabId(
+    tabs: List<TabInfo>,
+    activeTabId: TabId?,
+    requestedSecondaryTabId: TabId?,
+): TabId? {
+    val candidates = tabs.map { tab -> tab.tabId }.filter { tabId -> tabId != activeTabId }
+    if (candidates.isEmpty()) return null
+    return requestedSecondaryTabId?.takeIf { candidate -> candidates.contains(candidate) } ?: candidates.first()
+}
+
 private data class TerminalScreenModel(
     val tabs: List<TabInfo>,
     val activeTabId: TabId?,
@@ -200,6 +261,10 @@ private data class TerminalScreenModel(
     val terminalHapticFeedbackEnabled: Boolean,
     val terminalCursorStyle: Int,
     val terminalShortcutLayout: String,
+    val isSplitViewEnabled: Boolean,
+    val secondaryTabId: TabId?,
+    val canSplitView: Boolean,
+    val canCycleSplitPane: Boolean,
     val isFocusMode: Boolean,
 )
 
@@ -209,6 +274,8 @@ private data class TerminalScreenCallbacks(
     val onShowSnippets: () -> Unit,
     val onShowHistory: () -> Unit,
     val onToggleFocusMode: () -> Unit,
+    val onToggleSplitView: () -> Unit,
+    val onCycleSplitPane: () -> Unit,
     val onPageScroll: (Int) -> Unit,
 )
 
@@ -217,6 +284,8 @@ private data class TerminalMainCallbacks(
     val onShowConnectionPicker: () -> Unit,
     val onShowSnippets: () -> Unit,
     val onShowHistory: () -> Unit,
+    val onToggleSplitView: () -> Unit,
+    val onCycleSplitPane: () -> Unit,
     val onPageScroll: (Int) -> Unit,
     val onCopyText: (String) -> Unit,
     val onSubmitCommand: (String) -> Unit,
@@ -284,6 +353,8 @@ private fun TerminalScaffold(
                     onShowConnectionPicker = callbacks.onShowConnectionPicker,
                     onShowSnippets = callbacks.onShowSnippets,
                     onShowHistory = callbacks.onShowHistory,
+                    onToggleSplitView = callbacks.onToggleSplitView,
+                    onCycleSplitPane = callbacks.onCycleSplitPane,
                     onPageScroll = callbacks.onPageScroll,
                     onCopyText = { text -> viewModel.copyToClipboard(clipboardLabel, text) },
                     onSubmitCommand = viewModel::recordCommand,
@@ -315,35 +386,102 @@ private fun TerminalMainColumn(
                     TerminalTabBarModel(
                         tabs = model.tabs,
                         activeTabId = model.activeTabId,
+                        canSplitView = model.canSplitView,
+                        isSplitViewEnabled = model.isSplitViewEnabled,
+                        canCycleSplitPane = model.canCycleSplitPane,
                     ),
                 callbacks =
                     TerminalTabBarCallbacks(
                         onSwitchTab = viewModel::switchTab,
                         onShowNewTab = callbacks.onShowConnectionPicker,
                         onCloseActiveTab = { model.activeTabId?.let(viewModel::closeTab) },
+                        onToggleSplitView = callbacks.onToggleSplitView,
+                        onCycleSplitPane = callbacks.onCycleSplitPane,
                     ),
             )
         }
 
-        TerminalRenderer(
-            bridge = viewModel.bridge,
-            terminalColorSchemeId = model.terminalColorSchemeId,
-            terminalFontId = model.terminalFontId,
-            terminalFontSizeSp = model.terminalFontSizeSp,
-            terminalCursorStyle = model.terminalCursorStyle,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            scrollCounters = scrollCounters,
-            callbacks =
-                TerminalRendererCallbacks(
-                    onTap = { imeFocusSignal++ },
-                    onResize = { cols, rows -> viewModel.resize(cols, rows) },
-                    onCopyText = callbacks.onCopyText,
-                    onFontSizeChange = viewModel::setTerminalFontSizeSp,
-                ),
-        )
+        val activeTabId = model.activeTabId
+        val activeBridge = activeTabId?.let(viewModel::bridgeForTab) ?: viewModel.bridge
+        val secondaryTabId = model.secondaryTabId
+        val secondaryBridge = secondaryTabId?.let(viewModel::bridgeForTab)
+        val showSplitPane = model.isSplitViewEnabled && secondaryTabId != null && secondaryBridge != null
+
+        if (showSplitPane && activeTabId != null) {
+            val splitSecondaryTabId = secondaryTabId ?: activeTabId
+            val splitSecondaryBridge = secondaryBridge ?: activeBridge
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+            ) {
+                TerminalRenderer(
+                    bridge = activeBridge,
+                    terminalColorSchemeId = model.terminalColorSchemeId,
+                    terminalFontId = model.terminalFontId,
+                    terminalFontSizeSp = model.terminalFontSizeSp,
+                    terminalCursorStyle = model.terminalCursorStyle,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    scrollCounters = scrollCounters,
+                    callbacks =
+                        TerminalRendererCallbacks(
+                            onTap = {
+                                viewModel.switchTab(activeTabId)
+                                imeFocusSignal++
+                            },
+                            onResize = { cols, rows -> viewModel.resizeTab(activeTabId, cols, rows) },
+                            onCopyText = callbacks.onCopyText,
+                            onFontSizeChange = viewModel::setTerminalFontSizeSp,
+                        ),
+                )
+                HorizontalDivider()
+                TerminalRenderer(
+                    bridge = splitSecondaryBridge,
+                    terminalColorSchemeId = model.terminalColorSchemeId,
+                    terminalFontId = model.terminalFontId,
+                    terminalFontSizeSp = model.terminalFontSizeSp,
+                    terminalCursorStyle = model.terminalCursorStyle,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    callbacks =
+                        TerminalRendererCallbacks(
+                            onTap = {
+                                viewModel.switchTab(splitSecondaryTabId)
+                                imeFocusSignal++
+                            },
+                            onResize = { cols, rows -> viewModel.resizeTab(splitSecondaryTabId, cols, rows) },
+                            onCopyText = callbacks.onCopyText,
+                            onFontSizeChange = viewModel::setTerminalFontSizeSp,
+                        ),
+                )
+            }
+        } else {
+            TerminalRenderer(
+                bridge = activeBridge,
+                terminalColorSchemeId = model.terminalColorSchemeId,
+                terminalFontId = model.terminalFontId,
+                terminalFontSizeSp = model.terminalFontSizeSp,
+                terminalCursorStyle = model.terminalCursorStyle,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                scrollCounters = scrollCounters,
+                callbacks =
+                    TerminalRendererCallbacks(
+                        onTap = { imeFocusSignal++ },
+                        onResize = { cols, rows -> viewModel.resize(cols, rows) },
+                        onCopyText = callbacks.onCopyText,
+                        onFontSizeChange = viewModel::setTerminalFontSizeSp,
+                    ),
+            )
+        }
 
         if (!model.isFocusMode) {
             model.activeSnapshot?.error?.let { error ->
@@ -430,8 +568,13 @@ private fun TerminalTabBar(
         )
         TerminalTabButtons(
             activeTabId = model.activeTabId,
+            canSplitView = model.canSplitView,
+            isSplitViewEnabled = model.isSplitViewEnabled,
+            canCycleSplitPane = model.canCycleSplitPane,
             onShowNewTab = callbacks.onShowNewTab,
             onCloseActiveTab = callbacks.onCloseActiveTab,
+            onToggleSplitView = callbacks.onToggleSplitView,
+            onCycleSplitPane = callbacks.onCycleSplitPane,
         )
     }
 }
@@ -466,11 +609,35 @@ private fun RowScope.TerminalTabStrip(
 }
 
 @Composable
+@Suppress("LongParameterList")
 private fun TerminalTabButtons(
     activeTabId: TabId?,
+    canSplitView: Boolean,
+    isSplitViewEnabled: Boolean,
+    canCycleSplitPane: Boolean,
     onShowNewTab: () -> Unit,
     onCloseActiveTab: () -> Unit,
+    onToggleSplitView: () -> Unit,
+    onCycleSplitPane: () -> Unit,
 ) {
+    if (canSplitView) {
+        TextButton(onClick = onToggleSplitView) {
+            Text(
+                text =
+                    if (isSplitViewEnabled) {
+                        stringResource(R.string.terminal_split_disable)
+                    } else {
+                        stringResource(R.string.terminal_split_enable)
+                    },
+            )
+        }
+        if (isSplitViewEnabled && canCycleSplitPane) {
+            TextButton(onClick = onCycleSplitPane) {
+                Text(stringResource(R.string.terminal_split_next_pane))
+            }
+        }
+    }
+
     IconButton(onClick = onShowNewTab) {
         Icon(
             Icons.Default.Add,
@@ -493,12 +660,17 @@ private fun TerminalTabButtons(
 private data class TerminalTabBarModel(
     val tabs: List<TabInfo>,
     val activeTabId: TabId?,
+    val canSplitView: Boolean,
+    val isSplitViewEnabled: Boolean,
+    val canCycleSplitPane: Boolean,
 )
 
 private data class TerminalTabBarCallbacks(
     val onSwitchTab: (TabId) -> Unit,
     val onShowNewTab: () -> Unit,
     val onCloseActiveTab: () -> Unit,
+    val onToggleSplitView: () -> Unit,
+    val onCycleSplitPane: () -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

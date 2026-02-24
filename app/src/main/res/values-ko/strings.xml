@@ -145,6 +145,9 @@
     <string name="terminal_connection_proxy_jump">ProxyJump 홉: %1$d</string>
     <string name="terminal_connection_forwards">포워딩 규칙: %1$d</string>
     <string name="terminal_connection_forwards_more">추가 %1$d개</string>
+    <string name="terminal_split_enable">분할</string>
+    <string name="terminal_split_disable">단일</string>
+    <string name="terminal_split_next_pane">다음 패널</string>
 
     <string name="sftp_browser_title">SFTP 탐색기</string>
     <string name="sftp_back">뒤로</string>
