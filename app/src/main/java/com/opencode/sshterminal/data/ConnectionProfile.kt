@@ -18,6 +18,8 @@ data class ConnectionProfile(
     val identityId: String? = null,
     val proxyJump: String? = null,
     val proxyJumpIdentityIds: Map<String, String> = emptyMap(),
+    val portKnockSequence: List<Int> = emptyList(),
+    val portKnockDelayMillis: Int = 250,
     val portForwards: List<PortForwardRule> = emptyList(),
     val tags: List<String> = emptyList(),
     val environmentVariables: Map<String, String> = emptyMap(),

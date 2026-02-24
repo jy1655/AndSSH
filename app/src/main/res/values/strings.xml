@@ -54,6 +54,9 @@
     <string name="connection_label_host">Host</string>
     <string name="connection_label_proxy_jump_optional">ProxyJump (Optional)</string>
     <string name="connection_proxy_jump_placeholder">e.g. user@bastion:22,jump2</string>
+    <string name="connection_label_port_knock_sequence_optional">Port knock sequence (Optional)</string>
+    <string name="connection_port_knock_sequence_placeholder">e.g. 7000,8000,9000</string>
+    <string name="connection_label_port_knock_delay_ms">Port knock delay (ms)</string>
     <string name="connection_label_forward_agent">Forward SSH Agent</string>
     <string name="connection_proxy_jump_identity_title">ProxyJump Credentials</string>
     <string name="connection_label_port">Port</string>

@@ -26,6 +26,8 @@ internal fun ConnectionProfile.toConnectRequest(
         forwardAgent = forwardAgent,
         proxyJump = proxyJump,
         proxyJumpCredentials = proxyJumpCredentials,
+        portKnockSequence = portKnockSequence,
+        portKnockDelayMillis = portKnockDelayMillis,
         portForwards = portForwards,
         environmentVariables = environmentVariables,
         keepaliveIntervalSeconds = keepaliveIntervalSeconds,
