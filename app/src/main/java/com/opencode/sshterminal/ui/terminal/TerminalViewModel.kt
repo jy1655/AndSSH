@@ -2,6 +2,7 @@ package com.opencode.sshterminal.ui.terminal
 
 import android.content.Context
 import android.content.Intent
+import android.view.KeyEvent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.opencode.sshterminal.data.ConnectionProfile
@@ -107,6 +108,27 @@ class TerminalViewModel
             rows: Int,
         ) = sessionManager.resize(cols, rows)
 
+        /**
+         * Returns true when the scroll request was forwarded to the remote TUI.
+         * Returns false when the UI should handle local scrollback instead.
+         */
+        fun handlePageScroll(direction: Int): Boolean {
+            if (direction == 0) return false
+            val activeBridge = bridge
+            if (activeBridge.isMouseTrackingActive()) {
+                activeBridge.sendMouseWheel(
+                    scrollUp = direction > 0,
+                    repeatCount = MOUSE_WHEEL_STEPS_PER_PAGE_BUTTON,
+                )
+                return true
+            }
+            if (activeBridge.isAlternateBufferActive()) {
+                val keyCode = if (direction > 0) KeyEvent.KEYCODE_PAGE_UP else KeyEvent.KEYCODE_PAGE_DOWN
+                return activeBridge.sendKeyCode(keyCode)
+            }
+            return false
+        }
+
         fun dismissHostKeyAlert() = sessionManager.dismissHostKeyAlert()
 
         fun trustHostKeyOnce() = sessionManager.trustHostKeyOnce()
@@ -117,5 +139,6 @@ class TerminalViewModel
             private const val STATE_FLOW_TIMEOUT_MS = 5_000L
             private const val DEFAULT_TERMINAL_COLS = 120
             private const val DEFAULT_TERMINAL_ROWS = 40
+            private const val MOUSE_WHEEL_STEPS_PER_PAGE_BUTTON = 3
         }
     }
