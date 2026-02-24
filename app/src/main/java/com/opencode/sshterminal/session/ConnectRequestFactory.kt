@@ -1,6 +1,7 @@
 package com.opencode.sshterminal.session
 
 import android.content.Context
+import com.opencode.sshterminal.data.ConnectionIdentity
 import com.opencode.sshterminal.data.ConnectionProfile
 import java.io.File
 
@@ -10,15 +11,20 @@ internal fun ConnectionProfile.toConnectRequest(
     context: Context,
     cols: Int,
     rows: Int,
+    identity: ConnectionIdentity? = null,
+    proxyJumpCredentials: Map<String, JumpCredential> = emptyMap(),
 ): ConnectRequest =
     ConnectRequest(
         host = host,
         port = port,
-        username = username,
+        username = identity?.username ?: username,
         knownHostsPath = File(context.filesDir, KNOWN_HOSTS_FILE_NAME).absolutePath,
-        password = password,
-        privateKeyPath = privateKeyPath,
-        privateKeyPassphrase = privateKeyPassphrase,
+        password = identity?.password ?: password,
+        privateKeyPath = identity?.privateKeyPath ?: privateKeyPath,
+        privateKeyPassphrase = identity?.privateKeyPassphrase ?: privateKeyPassphrase,
+        proxyJump = proxyJump,
+        proxyJumpCredentials = proxyJumpCredentials,
+        portForwards = portForwards,
         cols = cols,
         rows = rows,
     )

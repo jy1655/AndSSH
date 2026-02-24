@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionRepository
+import com.opencode.sshterminal.session.JumpCredential
 import com.opencode.sshterminal.service.SshForegroundService
 import com.opencode.sshterminal.session.SessionManager
 import com.opencode.sshterminal.session.SessionSnapshot
@@ -81,6 +82,8 @@ class TerminalViewModel
         fun openTab(connectionId: String) {
             viewModelScope.launch {
                 val profile = connectionRepository.get(connectionId) ?: return@launch
+                val identity = profile.identityId?.let { identityId -> connectionRepository.getIdentity(identityId) }
+                val proxyJumpCredentials = resolveProxyJumpCredentials(profile)
                 connectionRepository.touchLastUsed(profile.id)
                 sessionManager.openTab(
                     title = profile.name,
@@ -90,9 +93,24 @@ class TerminalViewModel
                             context = context,
                             cols = DEFAULT_TERMINAL_COLS,
                             rows = DEFAULT_TERMINAL_ROWS,
+                            identity = identity,
+                            proxyJumpCredentials = proxyJumpCredentials,
                         ),
                 )
             }
+        }
+
+        private suspend fun resolveProxyJumpCredentials(profile: ConnectionProfile): Map<String, JumpCredential> {
+            return profile.proxyJumpIdentityIds.mapNotNull { (hostPortKey, identityId) ->
+                val identity = connectionRepository.getIdentity(identityId) ?: return@mapNotNull null
+                hostPortKey to
+                    JumpCredential(
+                        username = identity.username,
+                        password = identity.password,
+                        privateKeyPath = identity.privateKeyPath,
+                        privateKeyPassphrase = identity.privateKeyPassphrase,
+                    )
+            }.toMap()
         }
 
         fun switchTab(tabId: TabId) = sessionManager.switchTab(tabId)

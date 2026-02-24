@@ -8,6 +8,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
@@ -15,10 +16,16 @@ import com.opencode.sshterminal.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ConnectionListTopBar(onOpenSettings: () -> Unit) {
+internal fun ConnectionListTopBar(
+    onImportSshConfig: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     TopAppBar(
         title = { Text(stringResource(R.string.connection_list_title)) },
         actions = {
+            TextButton(onClick = onImportSshConfig) {
+                Text(stringResource(R.string.connection_import_ssh_config))
+            }
             IconButton(onClick = onOpenSettings) {
                 Icon(
                     Icons.Default.Settings,
