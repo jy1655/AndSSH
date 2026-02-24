@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.opencode.sshterminal.data.ConnectionIdentity
 import com.opencode.sshterminal.data.ConnectionProfile
+import com.opencode.sshterminal.data.ConnectionProtocol
 import com.opencode.sshterminal.data.ConnectionRepository
 import com.opencode.sshterminal.data.parseSshConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +19,14 @@ import javax.inject.Inject
 data class SshConfigImportSummary(
     val importedCount: Int,
     val skippedCount: Int,
+)
+
+data class QuickConnectInput(
+    val host: String,
+    val port: Int,
+    val username: String,
+    val password: String?,
+    val protocol: ConnectionProtocol,
 )
 
 @HiltViewModel
@@ -66,21 +75,18 @@ class ConnectionListViewModel
         }
 
         fun quickConnect(
-            host: String,
-            port: Int,
-            username: String,
-            password: String?,
+            input: QuickConnectInput,
             onComplete: (String) -> Unit,
         ) {
             viewModelScope.launch {
-                val normalizedPort = port.takeIf { it in 1..65535 } ?: 22
-                val displayName = "Quick: $username@$host"
+                val normalizedPort = input.port.takeIf { it in 1..65535 } ?: 22
+                val displayName = "Quick: ${input.username}@${input.host}"
                 val identity =
                     repository.upsertIdentity(
                         existingIdentityId = null,
                         displayName = displayName,
-                        username = username,
-                        password = password,
+                        username = input.username,
+                        password = input.password,
                         privateKeyPath = null,
                         privateKeyPassphrase = null,
                     )
@@ -88,7 +94,8 @@ class ConnectionListViewModel
                     ConnectionProfile(
                         id = UUID.randomUUID().toString(),
                         name = displayName,
-                        host = host,
+                        protocol = input.protocol,
+                        host = input.host,
                         port = normalizedPort,
                         username = identity.username,
                         password = identity.password,

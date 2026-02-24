@@ -1,11 +1,15 @@
 package com.opencode.sshterminal.ui.connection
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -19,17 +23,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.opencode.sshterminal.R
+import com.opencode.sshterminal.data.ConnectionProtocol
 
 @Suppress("LongMethod")
 @Composable
 fun QuickConnectDialog(
     onDismiss: () -> Unit,
-    onConnect: (host: String, port: Int, username: String, password: String) -> Unit,
+    onConnect: (host: String, port: Int, username: String, password: String, protocol: ConnectionProtocol) -> Unit,
 ) {
     var host by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("22") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var protocol by remember { mutableStateOf(ConnectionProtocol.SSH) }
+    var protocolMenuExpanded by remember { mutableStateOf(false) }
     val canConnect = host.isNotBlank() && username.isNotBlank()
 
     AlertDialog(
@@ -68,13 +75,49 @@ fun QuickConnectDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { protocolMenuExpanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            "${stringResource(R.string.connection_label_protocol)}: ${
+                                when (protocol) {
+                                    ConnectionProtocol.SSH -> stringResource(R.string.connection_protocol_ssh)
+                                    ConnectionProtocol.MOSH -> stringResource(R.string.connection_protocol_mosh)
+                                }
+                            }",
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = protocolMenuExpanded,
+                        onDismissRequest = { protocolMenuExpanded = false },
+                    ) {
+                        ConnectionProtocol.entries.forEach { candidate ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        when (candidate) {
+                                            ConnectionProtocol.SSH -> stringResource(R.string.connection_protocol_ssh)
+                                            ConnectionProtocol.MOSH -> stringResource(R.string.connection_protocol_mosh)
+                                        },
+                                    )
+                                },
+                                onClick = {
+                                    protocol = candidate
+                                    protocolMenuExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     val portValue = port.toIntOrNull().takeIf { it in 1..65535 } ?: 22
-                    onConnect(host.trim(), portValue, username.trim(), password)
+                    onConnect(host.trim(), portValue, username.trim(), password, protocol)
                 },
                 enabled = canConnect,
             ) {
