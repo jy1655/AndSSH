@@ -590,6 +590,7 @@ private data class ConnectionDraft(
     val username: String = "",
     val password: String = "",
     val privateKeyPath: String = "",
+    val certificatePath: String = "",
     val privateKeyPassphrase: String = "",
     val proxyJumpIdentityIds: Map<String, String> = emptyMap(),
     val portForwards: List<PortForwardRule> = emptyList(),
@@ -613,6 +614,7 @@ private fun ConnectionProfile?.toDraft(): ConnectionDraft =
         username = this?.username.orEmpty(),
         password = this?.password.orEmpty(),
         privateKeyPath = this?.privateKeyPath.orEmpty(),
+        certificatePath = this?.certificatePath.orEmpty(),
         privateKeyPassphrase = this?.privateKeyPassphrase.orEmpty(),
         proxyJumpIdentityIds = this?.proxyJumpIdentityIds.orEmpty(),
         portForwards = this?.portForwards.orEmpty(),
@@ -651,6 +653,7 @@ private fun ConnectionDraft.toProfileOrNull(
         username = username,
         password = password.ifBlank { null },
         privateKeyPath = privateKeyPath.ifBlank { null },
+        certificatePath = certificatePath.ifBlank { null }?.takeIf { privateKeyPath.isNotBlank() },
         privateKeyPassphrase = privateKeyPassphrase.ifBlank { null },
         identityId = selectedIdentityId,
         proxyJumpIdentityIds = filteredProxyJumpIdentityIds,
@@ -692,6 +695,12 @@ private fun ConnectionBottomSheet(
         rememberConnectionPrivateKeyPicker(
             onImported = { importedPath ->
                 draft = draft.copy(privateKeyPath = importedPath)
+            },
+        )
+    val certificatePicker =
+        rememberConnectionCertificatePicker(
+            onImported = { importedPath ->
+                draft = draft.copy(certificatePath = importedPath)
             },
         )
     val privateKeyGenerator =
@@ -739,13 +748,18 @@ private fun ConnectionBottomSheet(
                                 username = identity.username,
                                 password = identity.password.orEmpty(),
                                 privateKeyPath = identity.privateKeyPath.orEmpty(),
+                                certificatePath = identity.certificatePath.orEmpty(),
                                 privateKeyPassphrase = identity.privateKeyPassphrase.orEmpty(),
                             )
                     }
                 },
                 onDraftChange = { draft = it },
                 onPickPrivateKey = privateKeyPicker,
-                onClearPrivateKey = { draft = draft.copy(privateKeyPath = "", privateKeyPassphrase = "") },
+                onPickCertificate = certificatePicker,
+                onClearPrivateKey = {
+                    draft = draft.copy(privateKeyPath = "", certificatePath = "", privateKeyPassphrase = "")
+                },
+                onClearCertificate = { draft = draft.copy(certificatePath = "") },
                 onGeneratePrivateKey = privateKeyGenerator,
                 onAddPortForwardRule = { rule ->
                     draft = draft.copy(portForwards = draft.portForwards + rule)
@@ -799,6 +813,7 @@ private fun ConnectionBottomSheet(
 }
 
 @Composable
+@Suppress("LongMethod", "LongParameterList")
 private fun ConnectionFormFields(
     draft: ConnectionDraft,
     identities: List<ConnectionIdentity>,
@@ -806,7 +821,9 @@ private fun ConnectionFormFields(
     onSelectIdentity: (ConnectionIdentity?) -> Unit,
     onDraftChange: (ConnectionDraft) -> Unit,
     onPickPrivateKey: () -> Unit,
+    onPickCertificate: () -> Unit,
     onClearPrivateKey: () -> Unit,
+    onClearCertificate: () -> Unit,
     onGeneratePrivateKey: (SshKeyAlgorithm) -> Unit,
     onAddPortForwardRule: (PortForwardRule) -> Unit,
     onUpdatePortForwardRuleAt: (Int, PortForwardRule) -> Unit,
@@ -977,10 +994,13 @@ private fun ConnectionFormFields(
     )
     ConnectionPrivateKeyField(
         privateKeyPath = draft.privateKeyPath,
+        certificatePath = draft.certificatePath,
         privateKeyPassphrase = draft.privateKeyPassphrase,
         onPrivateKeyPassphraseChange = { onDraftChange(draft.copy(privateKeyPassphrase = it)) },
         onPickPrivateKey = onPickPrivateKey,
+        onPickCertificate = onPickCertificate,
         onClearPrivateKey = onClearPrivateKey,
+        onClearCertificate = onClearCertificate,
         onGeneratePrivateKey = onGeneratePrivateKey,
     )
 }

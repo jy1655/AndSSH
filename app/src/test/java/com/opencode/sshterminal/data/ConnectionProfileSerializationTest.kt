@@ -4,6 +4,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ConnectionProfileSerializationTest {
@@ -27,6 +28,7 @@ class ConnectionProfileSerializationTest {
         assertEquals(ConnectionProtocol.SSH, decoded.protocol)
         assertEquals("legacy-1", decoded.id)
         assertEquals("legacy", decoded.name)
+        assertNull(decoded.certificatePath)
     }
 
     @Test

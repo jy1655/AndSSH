@@ -22,6 +22,7 @@ internal fun ConnectionProfile.toConnectRequest(
         knownHostsPath = File(context.filesDir, KNOWN_HOSTS_FILE_NAME).absolutePath,
         password = identity?.password ?: password,
         privateKeyPath = identity?.privateKeyPath ?: privateKeyPath,
+        certificatePath = identity?.certificatePath ?: certificatePath,
         privateKeyPassphrase = identity?.privateKeyPassphrase ?: privateKeyPassphrase,
         forwardAgent = forwardAgent,
         proxyJump = proxyJump,

@@ -26,7 +26,25 @@ class SshConfigImportParserTest {
         assertEquals("ubuntu", host.user)
         assertEquals(2222, host.port)
         assertEquals("~/.ssh/id_ed25519", host.identityFile)
+        assertNull(host.certificateFile)
         assertEquals(0, result.skippedHostEntries)
+    }
+
+    @Test
+    fun `parses certificatefile directive`() {
+        val content =
+            """
+            Host cert-target
+              HostName cert.example.com
+              User ubuntu
+              IdentityFile ~/.ssh/id_ed25519
+              CertificateFile ~/.ssh/id_ed25519-cert.pub
+            """.trimIndent()
+
+        val result = parseSshConfig(content)
+        val host = result.hosts.single()
+
+        assertEquals("~/.ssh/id_ed25519-cert.pub", host.certificateFile)
     }
 
     @Test
