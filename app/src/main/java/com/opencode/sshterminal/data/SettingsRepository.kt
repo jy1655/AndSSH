@@ -138,7 +138,7 @@ class SettingsRepository
             const val DEFAULT_TERMINAL_FONT = "meslo_nerd"
             const val DEFAULT_TERMINAL_FONT_SIZE_SP = 12
             const val MIN_TERMINAL_FONT_SIZE_SP = 8
-            const val MAX_TERMINAL_FONT_SIZE_SP = 32
+            const val MAX_TERMINAL_FONT_SIZE_SP = 48
             const val DEFAULT_SSH_KEEPALIVE_INTERVAL = 15
             const val DEFAULT_SCREENSHOT_PROTECTION_ENABLED = false
             const val DEFAULT_TERMINAL_HAPTIC_FEEDBACK_ENABLED = true

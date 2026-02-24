@@ -16,6 +16,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.res.ResourcesCompat
+import com.opencode.sshterminal.data.SettingsRepository
 import com.opencode.sshterminal.terminal.TerminalColorSchemePreset
 import com.opencode.sshterminal.terminal.TerminalFontPreset
 import com.opencode.sshterminal.terminal.TermuxTerminalBridge
@@ -24,9 +25,9 @@ import com.termux.terminal.TerminalBuffer
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.WcWidth
 
-internal const val DEFAULT_FONT_SIZE_SP = 12
-private const val MIN_FONT_SIZE_SP = 8
-private const val MAX_FONT_SIZE_SP = 32
+internal const val DEFAULT_FONT_SIZE_SP = SettingsRepository.DEFAULT_TERMINAL_FONT_SIZE_SP
+private const val MIN_FONT_SIZE_SP = SettingsRepository.MIN_TERMINAL_FONT_SIZE_SP
+private const val MAX_FONT_SIZE_SP = SettingsRepository.MAX_TERMINAL_FONT_SIZE_SP
 
 data class TerminalSelection(
     val startRow: Int,

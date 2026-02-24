@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.opencode.sshterminal.BuildConfig
 import com.opencode.sshterminal.R
+import com.opencode.sshterminal.data.SettingsRepository
 import com.opencode.sshterminal.terminal.TerminalColorSchemePreset
 import com.opencode.sshterminal.terminal.TerminalFontPreset
 import com.opencode.sshterminal.ui.theme.ClassicPurple
@@ -350,7 +351,9 @@ private fun TerminalSection(
 
     val schemeOptions = TerminalColorSchemePreset.entries.map { it.id to it.displayName }
     val fontOptions = TerminalFontPreset.entries.map { it.id to it.displayName }
-    val fontSizeOptions = listOf(10, 12, 14, 16, 18, 20).map { size -> size to stringResource(R.string.settings_font_size_value, size) }
+    val fontSizeOptions =
+        (SettingsRepository.MIN_TERMINAL_FONT_SIZE_SP..SettingsRepository.MAX_TERMINAL_FONT_SIZE_SP step 2)
+            .map { size -> size to stringResource(R.string.settings_font_size_value, size) }
     val cursorStyleOptions =
         listOf(
             TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK to stringResource(R.string.settings_cursor_style_block),
