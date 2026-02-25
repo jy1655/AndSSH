@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.opencode.sshterminal.security.KeyRepository
 import com.opencode.sshterminal.security.KeyRepositoryImpl
+import com.opencode.sshterminal.security.U2fSecurityKeyManager
 import com.opencode.sshterminal.sftp.SftpChannelAdapter
 import com.opencode.sshterminal.sftp.SshjSftpAdapter
 import com.opencode.sshterminal.ssh.SshClient
@@ -42,13 +43,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideSshClient(): SshClient {
-        return SshjClient()
+    fun provideSshClient(u2fSecurityKeyManager: U2fSecurityKeyManager): SshClient {
+        return SshjClient(u2fSecurityKeyManager)
     }
 
     @Provides
-    fun provideSftpAdapter(): SftpChannelAdapter {
-        return SshjSftpAdapter()
+    fun provideSftpAdapter(u2fSecurityKeyManager: U2fSecurityKeyManager): SftpChannelAdapter {
+        return SshjSftpAdapter(u2fSecurityKeyManager)
     }
 
     @Provides

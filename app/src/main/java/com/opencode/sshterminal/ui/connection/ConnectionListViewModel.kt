@@ -7,6 +7,7 @@ import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionProtocol
 import com.opencode.sshterminal.data.ConnectionRepository
 import com.opencode.sshterminal.data.parseSshConfig
+import com.opencode.sshterminal.security.U2fSecurityKeyManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,11 +30,19 @@ data class QuickConnectInput(
     val protocol: ConnectionProtocol,
 )
 
+data class SecurityKeyEnrollmentResult(
+    val application: String,
+    val keyHandleBase64: String,
+    val publicKeyBase64: String,
+    val authorizedKey: String,
+)
+
 @HiltViewModel
 class ConnectionListViewModel
     @Inject
     constructor(
         private val repository: ConnectionRepository,
+        private val u2fSecurityKeyManager: U2fSecurityKeyManager,
     ) : ViewModel() {
         val profiles: StateFlow<List<ConnectionProfile>> =
             repository.profiles
@@ -115,6 +124,32 @@ class ConnectionListViewModel
 
         fun delete(id: String) {
             viewModelScope.launch { repository.delete(id) }
+        }
+
+        fun enrollHardwareSecurityKey(
+            application: String,
+            displayName: String,
+            onComplete: (SecurityKeyEnrollmentResult?) -> Unit,
+        ) {
+            viewModelScope.launch {
+                val enrolled =
+                    runCatching {
+                        u2fSecurityKeyManager.enrollSecurityKey(
+                            application = application,
+                            comment = displayName,
+                        )
+                    }.getOrNull()
+                onComplete(
+                    enrolled?.let { entry ->
+                        SecurityKeyEnrollmentResult(
+                            application = entry.application,
+                            keyHandleBase64 = entry.keyHandleBase64,
+                            publicKeyBase64 = entry.publicKeyBase64,
+                            authorizedKey = entry.authorizedKey,
+                        )
+                    },
+                )
+            }
         }
 
         fun importFromSshConfig(
