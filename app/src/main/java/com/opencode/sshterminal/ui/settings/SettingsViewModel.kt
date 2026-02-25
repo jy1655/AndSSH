@@ -11,6 +11,7 @@ import com.opencode.sshterminal.data.ConnectionBackupManager
 import com.opencode.sshterminal.data.DEFAULT_TERMINAL_HARDWARE_KEY_BINDINGS
 import com.opencode.sshterminal.data.DEFAULT_TERMINAL_SHORTCUT_LAYOUT
 import com.opencode.sshterminal.data.SettingsRepository
+import com.opencode.sshterminal.security.BiometricBoundKeyManager
 import com.opencode.sshterminal.ui.theme.ThemePreset
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,6 +50,7 @@ class SettingsViewModel
         private val authRepository: AuthRepository,
         private val crashReportRepository: CrashReportRepository,
         private val connectionBackupManager: ConnectionBackupManager,
+        private val biometricBoundKeyManager: BiometricBoundKeyManager,
     ) : ViewModel() {
         private val basePreferencesFlow =
             combine(
@@ -212,7 +214,12 @@ class SettingsViewModel
 
         fun setBiometricEnabled(enabled: Boolean) {
             viewModelScope.launch {
-                authRepository.setBiometricEnabled(enabled)
+                if (enabled) {
+                    authRepository.setBiometricEnabled(biometricBoundKeyManager.ensureKey())
+                } else {
+                    authRepository.setBiometricEnabled(false)
+                    biometricBoundKeyManager.deleteKey()
+                }
             }
         }
 

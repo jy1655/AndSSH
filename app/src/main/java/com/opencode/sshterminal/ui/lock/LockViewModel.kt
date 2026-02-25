@@ -11,6 +11,7 @@ import com.opencode.sshterminal.R
 import com.opencode.sshterminal.auth.AuthRepository
 import com.opencode.sshterminal.auth.AutoLockManager
 import com.opencode.sshterminal.data.SettingsRepository
+import com.opencode.sshterminal.security.BiometricBoundKeyManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ class LockViewModel
         private val authRepository: AuthRepository,
         private val autoLockManager: AutoLockManager,
         private val settingsRepository: SettingsRepository,
+        private val biometricBoundKeyManager: BiometricBoundKeyManager,
         @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
         private val _isLocked = MutableStateFlow(true)
@@ -53,7 +55,11 @@ class LockViewModel
 
         val canUseBiometric: StateFlow<Boolean> =
             combine(isBiometricEnabled, isLocked, isFirstSetup) { enabled, locked, firstSetup ->
-                enabled && biometricAvailable && locked && !firstSetup
+                enabled &&
+                    biometricAvailable &&
+                    biometricBoundKeyManager.hasKey() &&
+                    locked &&
+                    !firstSetup
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
@@ -104,7 +110,8 @@ class LockViewModel
         fun setupPassword(password: String) {
             viewModelScope.launch {
                 authRepository.setMasterPassword(password.toCharArray())
-                authRepository.setBiometricEnabled(biometricAvailable)
+                val biometricEnabled = biometricAvailable && biometricBoundKeyManager.ensureKey()
+                authRepository.setBiometricEnabled(biometricEnabled)
                 _error.value = null
                 _isFirstSetup.value = false
                 _isLocked.value = false
@@ -114,6 +121,7 @@ class LockViewModel
         fun skipSetup() {
             viewModelScope.launch {
                 authRepository.setBiometricEnabled(false)
+                biometricBoundKeyManager.deleteKey()
                 authRepository.setAppLockEnabled(false)
                 _error.value = null
                 _isFirstSetup.value = false
@@ -121,8 +129,20 @@ class LockViewModel
             }
         }
 
+        @Suppress("ReturnCount")
         fun triggerBiometric(activity: FragmentActivity) {
-            if (!canUseBiometric.value) {
+            if (!canUseBiometric.value && !isBiometricEnabled.value) {
+                return
+            }
+            if (!biometricBoundKeyManager.ensureKey()) {
+                viewModelScope.launch { authRepository.setBiometricEnabled(false) }
+                _error.value = ERROR_BIOMETRIC_KEY_UNAVAILABLE
+                return
+            }
+            val cipher = biometricBoundKeyManager.createUnlockCipher()
+            if (cipher == null) {
+                viewModelScope.launch { authRepository.setBiometricEnabled(false) }
+                _error.value = ERROR_BIOMETRIC_KEY_UNAVAILABLE
                 return
             }
 
@@ -133,8 +153,12 @@ class LockViewModel
                     executor,
                     object : BiometricPrompt.AuthenticationCallback() {
                         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                            _error.value = null
-                            _isLocked.value = false
+                            if (biometricBoundKeyManager.verifyUnlock(result.cryptoObject?.cipher)) {
+                                _error.value = null
+                                _isLocked.value = false
+                            } else {
+                                _error.value = ERROR_BIOMETRIC_KEY_UNAVAILABLE
+                            }
                         }
 
                         override fun onAuthenticationError(
@@ -160,7 +184,10 @@ class LockViewModel
                     .setNegativeButtonText(activity.getString(R.string.common_cancel))
                     .build()
 
-            prompt.authenticate(promptInfo)
+            prompt.authenticate(
+                promptInfo,
+                BiometricPrompt.CryptoObject(cipher),
+            )
         }
 
         fun clearError() {
@@ -170,6 +197,7 @@ class LockViewModel
         companion object {
             const val ERROR_WRONG_PASSWORD = "wrong_password"
             const val ERROR_PASSWORDS_MISMATCH = "passwords_mismatch"
+            const val ERROR_BIOMETRIC_KEY_UNAVAILABLE = "biometric_key_unavailable"
             private const val STATE_FLOW_TIMEOUT_MS = 5_000L
         }
     }
