@@ -50,7 +50,7 @@ class U2fSecurityKeyManager
                 }
             val appUri = Uri.parse(effectiveApplication)
             val challenge = ByteArray(U2F_CHALLENGE_BYTES).also(secureRandom::nextBytes)
-            val registerRequest = RegisterRequest(ProtocolVersion.V1, challenge, effectiveApplication)
+            val registerRequest = RegisterRequest(U2F_PROTOCOL_VERSION, challenge, effectiveApplication)
             val params =
                 RegisterRequestParams
                     .Builder()
@@ -109,7 +109,7 @@ class U2fSecurityKeyManager
                 RegisteredKey(
                     KeyHandle(
                         keyHandleBytes,
-                        ProtocolVersion.V1,
+                        U2F_PROTOCOL_VERSION,
                         emptyList<Transport>(),
                     ),
                 )
@@ -156,9 +156,10 @@ class U2fSecurityKeyManager
         )
 
         companion object {
-            private const val U2F_CHALLENGE_BYTES = RegisterRequest.U2F_V1_CHALLENGE_BYTE_LENGTH
+            private const val U2F_CHALLENGE_BYTES = 32
             private const val DEFAULT_SECURITY_KEY_APPLICATION = "https://andssh.local"
             private const val LEGACY_OPENSSH_APPLICATION = "ssh:"
+            private val U2F_PROTOCOL_VERSION = ProtocolVersion.V2
             private val secureRandom = SecureRandom()
         }
     }
