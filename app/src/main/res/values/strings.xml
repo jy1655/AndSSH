@@ -211,6 +211,7 @@
     <string name="lock_unlock_button">Unlock</string>
     <string name="lock_use_biometric">Use Biometric</string>
     <string name="lock_wrong_password">Wrong password. Try again.</string>
+    <string name="lock_biometric_key_unavailable">Biometric security key is unavailable. Re-enable biometric unlock in Settings.</string>
     <string name="lock_setup_title">Set up app lock</string>
     <string name="lock_setup_subtitle">Create a master password or skip for now.</string>
     <string name="lock_set_password">Set Password</string>

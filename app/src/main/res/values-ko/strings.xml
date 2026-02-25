@@ -211,6 +211,7 @@
     <string name="lock_unlock_button">잠금 해제</string>
     <string name="lock_use_biometric">생체 인증 사용</string>
     <string name="lock_wrong_password">비밀번호가 올바르지 않습니다. 다시 시도하세요.</string>
+    <string name="lock_biometric_key_unavailable">생체 보안 키를 사용할 수 없습니다. 설정에서 생체 잠금 해제를 다시 활성화해 주세요.</string>
     <string name="lock_setup_title">앱 잠금 설정</string>
     <string name="lock_setup_subtitle">마스터 비밀번호를 만들거나 지금은 건너뛸 수 있습니다.</string>
     <string name="lock_set_password">비밀번호 설정</string>

@@ -244,6 +244,7 @@ private fun mapErrorMessage(error: String): String {
     return when (error) {
         LockViewModel.ERROR_WRONG_PASSWORD -> stringResource(R.string.lock_wrong_password)
         LockViewModel.ERROR_PASSWORDS_MISMATCH -> stringResource(R.string.lock_passwords_mismatch)
+        LockViewModel.ERROR_BIOMETRIC_KEY_UNAVAILABLE -> stringResource(R.string.lock_biometric_key_unavailable)
         else -> error
     }
 }
