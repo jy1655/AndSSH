@@ -37,7 +37,7 @@ class U2fSecurityKeyManager
         @ApplicationContext private val context: Context,
         private val u2fActivityBridge: U2fActivityBridge,
     ) {
-        @Suppress("ReturnCount", "ThrowsCount")
+        @Suppress("ReturnCount", "ThrowsCount", "TooGenericExceptionCaught", "LoopWithTooManyJumpStatements")
         suspend fun enrollSecurityKey(
             application: String,
             comment: String,
@@ -67,6 +67,20 @@ class U2fSecurityKeyManager
                         continue
                     }
                     throw failure
+                } catch (failure: Exception) {
+                    val reason =
+                        failure.message?.ifBlank { null } ?: failure.javaClass.simpleName
+                    val wrapped =
+                        U2fEnrollmentException(
+                            code = null,
+                            message = "U2F enrollment error for appId=$candidate: $reason",
+                        )
+                    lastFailure = wrapped
+                    Log.w(TAG, "U2F enrollment unexpected failure for appId=$candidate", failure)
+                    if (candidate != candidates.last()) {
+                        continue
+                    }
+                    throw wrapped
                 }
             }
             throw (lastFailure ?: error("U2F registration failed"))

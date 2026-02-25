@@ -26,14 +26,16 @@ internal fun SSHClient.authenticate(
                 authPassword(request.username, requireNotNull(passwordChars))
             }
         !request.privateKeyPath.isNullOrEmpty() -> {
-            val keyProvider = loadKeyProviderForAuth(request)
-            try {
-                authPublickey(request.username, keyProvider)
-            } catch (authError: UserAuthException) {
-                if (authError.hasCause<KeyDecryptionFailedException>()) {
-                    error("Private key passphrase is required or incorrect")
+            withZeroizedChars(request.privateKeyPassphrase) { passphraseChars ->
+                val keyProvider = loadKeyProviderForAuth(request, passphraseChars)
+                try {
+                    authPublickey(request.username, keyProvider)
+                } catch (authError: UserAuthException) {
+                    if (authError.hasCause<KeyDecryptionFailedException>()) {
+                        error("Private key passphrase is required or incorrect")
+                    }
+                    throw authError
                 }
-                throw authError
             }
         }
         else -> error("Either password or privateKeyPath must be provided")
@@ -67,40 +69,38 @@ private fun SSHClient.authenticateWithHardwareSecurityKey(
     )
 }
 
-private fun SSHClient.loadKeyProviderForAuth(request: ConnectRequest) =
-    with(request) {
-        val privateKeyPath = requireNotNull(privateKeyPath)
-        val certificatePath = certificatePath
-        when {
-            certificatePath.isNullOrEmpty() -> {
-                if (privateKeyPassphrase.isNullOrEmpty()) {
-                    loadKeys(privateKeyPath)
-                } else {
-                    withZeroizedChars(privateKeyPassphrase) { passphraseChars ->
-                        loadKeys(privateKeyPath, requireNotNull(passphraseChars))
-                    }
-                }
-            }
-
-            privateKeyPassphrase.isNullOrEmpty() -> {
-                loadKeys(
-                    privateKeyPath,
-                    certificatePath,
-                    null as PasswordFinder?,
-                )
-            }
-
-            else -> {
-                withZeroizedChars(privateKeyPassphrase) { passphraseChars ->
-                    loadKeys(
-                        privateKeyPath,
-                        certificatePath,
-                        PasswordUtils.createOneOff(requireNotNull(passphraseChars)),
-                    )
-                }
+private fun SSHClient.loadKeyProviderForAuth(
+    request: ConnectRequest,
+    passphraseChars: CharArray?,
+) = with(request) {
+    val privateKeyPath = requireNotNull(privateKeyPath)
+    val certificatePath = certificatePath
+    when {
+        certificatePath.isNullOrEmpty() -> {
+            if (passphraseChars == null) {
+                loadKeys(privateKeyPath)
+            } else {
+                loadKeys(privateKeyPath, passphraseChars)
             }
         }
+
+        passphraseChars == null -> {
+            loadKeys(
+                privateKeyPath,
+                certificatePath,
+                null as PasswordFinder?,
+            )
+        }
+
+        else -> {
+            loadKeys(
+                privateKeyPath,
+                certificatePath,
+                PasswordUtils.createOneOff(passphraseChars),
+            )
+        }
     }
+}
 
 private fun ConnectRequest.hasHardwareSecurityKey(): Boolean {
     return !securityKeyApplication.isNullOrBlank() &&
