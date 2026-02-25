@@ -6,6 +6,7 @@ import com.opencode.sshterminal.data.PortForwardRule
 import com.opencode.sshterminal.data.PortForwardType
 import com.opencode.sshterminal.data.parseProxyJumpEntries
 import com.opencode.sshterminal.data.proxyJumpHostPortKey
+import com.opencode.sshterminal.security.U2fSecurityKeyManager
 import com.opencode.sshterminal.security.withZeroizedChars
 import com.opencode.sshterminal.session.ConnectRequest
 import com.opencode.sshterminal.session.HostKeyPolicy
@@ -52,7 +53,9 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
-class SshjClient : SshClient {
+class SshjClient(
+    private val u2fSecurityKeyManager: U2fSecurityKeyManager,
+) : SshClient {
     override suspend fun connect(request: ConnectRequest): SshSession =
         withContext(Dispatchers.IO) {
             executePortKnockSequence(request)
@@ -189,7 +192,7 @@ class SshjClient : SshClient {
             }
             verifierSetup.updatingVerifier?.persistAcceptedHostKeyIfNeeded()
             logKnownHostsDiffIfNeeded(request, verifierSetup, target)
-            ssh.authenticate(request)
+            ssh.authenticate(request, u2fSecurityKeyManager)
         } catch (failure: Throwable) {
             val changedFingerprint = verifierSetup.verifier?.changedFingerprint
             if (changedFingerprint != null) {

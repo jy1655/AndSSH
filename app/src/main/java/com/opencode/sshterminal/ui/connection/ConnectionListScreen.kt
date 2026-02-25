@@ -1,5 +1,7 @@
 package com.opencode.sshterminal.ui.connection
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -67,7 +69,9 @@ import com.opencode.sshterminal.data.ProxyJumpEntry
 import com.opencode.sshterminal.data.parseProxyJumpEntries
 import com.opencode.sshterminal.data.proxyJumpHostPortKey
 import com.opencode.sshterminal.security.SshKeyAlgorithm
+import com.opencode.sshterminal.security.buildSshSkEcdsaAuthorizedKey
 import com.opencode.sshterminal.terminal.TerminalColorSchemePreset
+import java.util.Base64
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -197,6 +201,13 @@ fun ConnectionListScreen(
         ConnectionBottomSheet(
             initial = editingProfile,
             identities = identities,
+            onEnrollSecurityKey = { application, displayName, onComplete ->
+                viewModel.enrollHardwareSecurityKey(
+                    application = application,
+                    displayName = displayName,
+                    onComplete = onComplete,
+                )
+            },
             onDismiss = { showSheet = false },
             onSave = { profile ->
                 viewModel.save(profile)
@@ -592,9 +603,15 @@ private data class ConnectionDraft(
     val privateKeyPath: String = "",
     val certificatePath: String = "",
     val privateKeyPassphrase: String = "",
+    val securityKeyApplication: String = DEFAULT_SECURITY_KEY_APPLICATION,
+    val securityKeyHandleBase64: String = "",
+    val securityKeyPublicKeyBase64: String = "",
+    val securityKeyAuthorizedKey: String = "",
     val proxyJumpIdentityIds: Map<String, String> = emptyMap(),
     val portForwards: List<PortForwardRule> = emptyList(),
 )
+
+private const val DEFAULT_SECURITY_KEY_APPLICATION = "ssh:"
 
 private fun ConnectionProfile?.toDraft(): ConnectionDraft =
     ConnectionDraft(
@@ -616,10 +633,15 @@ private fun ConnectionProfile?.toDraft(): ConnectionDraft =
         privateKeyPath = this?.privateKeyPath.orEmpty(),
         certificatePath = this?.certificatePath.orEmpty(),
         privateKeyPassphrase = this?.privateKeyPassphrase.orEmpty(),
+        securityKeyApplication = this?.securityKeyApplication ?: DEFAULT_SECURITY_KEY_APPLICATION,
+        securityKeyHandleBase64 = this?.securityKeyHandleBase64.orEmpty(),
+        securityKeyPublicKeyBase64 = this?.securityKeyPublicKeyBase64.orEmpty(),
+        securityKeyAuthorizedKey = this?.toAuthorizedSecurityKeyEntry().orEmpty(),
         proxyJumpIdentityIds = this?.proxyJumpIdentityIds.orEmpty(),
         portForwards = this?.portForwards.orEmpty(),
     )
 
+@Suppress("LongMethod")
 private fun ConnectionDraft.toProfileOrNull(
     initial: ConnectionProfile?,
     selectedIdentityId: String?,
@@ -635,6 +657,11 @@ private fun ConnectionDraft.toProfileOrNull(
     val parsedTags = parseConnectionTagsInput(tagsInput)
     val parsedPortKnockSequence = parsePortKnockSequenceInput(portKnockSequenceInput)
     val parsedPortKnockDelayMillis = portKnockDelayMillis.toIntOrNull()?.coerceIn(50, 5_000) ?: 250
+    val normalizedSecurityKeyApplication = securityKeyApplication.trim()
+    val securityKeyConfigured =
+        securityKeyHandleBase64.isNotBlank() &&
+            securityKeyPublicKeyBase64.isNotBlank() &&
+            normalizedSecurityKeyApplication.isNotBlank()
     return ConnectionProfile(
         id = initial?.id ?: UUID.randomUUID().toString(),
         name = name.ifBlank { "$username@$host" },
@@ -655,6 +682,25 @@ private fun ConnectionDraft.toProfileOrNull(
         privateKeyPath = privateKeyPath.ifBlank { null },
         certificatePath = certificatePath.ifBlank { null }?.takeIf { privateKeyPath.isNotBlank() },
         privateKeyPassphrase = privateKeyPassphrase.ifBlank { null },
+        securityKeyApplication =
+            if (securityKeyConfigured) {
+                normalizedSecurityKeyApplication
+            } else {
+                null
+            },
+        securityKeyHandleBase64 =
+            if (securityKeyConfigured) {
+                securityKeyHandleBase64.trim()
+            } else {
+                null
+            },
+        securityKeyPublicKeyBase64 =
+            if (securityKeyConfigured) {
+                securityKeyPublicKeyBase64.trim()
+            } else {
+                null
+            },
+        securityKeyFlags = initial?.securityKeyFlags ?: 1,
         identityId = selectedIdentityId,
         proxyJumpIdentityIds = filteredProxyJumpIdentityIds,
         portForwards = portForwards,
@@ -667,6 +713,24 @@ private fun ConnectionDraft.clearSensitiveFields(): ConnectionDraft {
         password = "",
         privateKeyPassphrase = "",
     )
+}
+
+@Suppress("ReturnCount")
+private fun ConnectionProfile.toAuthorizedSecurityKeyEntry(): String {
+    val application = securityKeyApplication?.trim().orEmpty()
+    val publicKeyBase64 = securityKeyPublicKeyBase64?.trim().orEmpty()
+    if (application.isBlank() || publicKeyBase64.isBlank()) return ""
+    val publicKey =
+        runCatching {
+            Base64.getDecoder().decode(publicKeyBase64)
+        }.getOrNull() ?: return ""
+    return runCatching {
+        buildSshSkEcdsaAuthorizedKey(
+            publicKeyUncompressed = publicKey,
+            application = application,
+            comment = name.ifBlank { "$username@$host" },
+        )
+    }.getOrElse { "" }
 }
 
 private fun connectionRouteSummary(profile: ConnectionProfile): String? {
@@ -689,12 +753,19 @@ private fun connectionRouteSummary(profile: ConnectionProfile): String? {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Suppress("LongMethod")
 private fun ConnectionBottomSheet(
     initial: ConnectionProfile?,
     identities: List<ConnectionIdentity>,
+    onEnrollSecurityKey: (
+        application: String,
+        displayName: String,
+        onComplete: (SecurityKeyEnrollmentResult?) -> Unit,
+    ) -> Unit,
     onDismiss: () -> Unit,
     onSave: (ConnectionProfile) -> Unit,
 ) {
+    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var draft by remember(initial) { mutableStateOf(initial.toDraft()) }
     var selectedIdentityId by remember(initial) { mutableStateOf(initial?.identityId) }
@@ -798,6 +869,73 @@ private fun ConnectionBottomSheet(
                     }
                 },
                 onClearPortForwards = { draft = draft.copy(portForwards = emptyList()) },
+                onEnrollSecurityKey = {
+                    val normalizedApplication =
+                        draft.securityKeyApplication
+                            .trim()
+                            .ifBlank { DEFAULT_SECURITY_KEY_APPLICATION }
+                    val displayName =
+                        draft.name.ifBlank {
+                            "${draft.username.ifBlank { "user" }}@${draft.host.ifBlank { "host" }}"
+                        }
+                    onEnrollSecurityKey(
+                        normalizedApplication,
+                        displayName,
+                    ) { enrolled ->
+                        if (enrolled == null) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.connection_security_key_enroll_failed),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        } else {
+                            draft =
+                                draft.copy(
+                                    securityKeyApplication = enrolled.application,
+                                    securityKeyHandleBase64 = enrolled.keyHandleBase64,
+                                    securityKeyPublicKeyBase64 = enrolled.publicKeyBase64,
+                                    securityKeyAuthorizedKey = enrolled.authorizedKey,
+                                )
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.connection_security_key_enroll_success),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    }
+                },
+                onClearSecurityKey = {
+                    draft =
+                        draft.copy(
+                            securityKeyApplication =
+                                draft.securityKeyApplication.ifBlank {
+                                    DEFAULT_SECURITY_KEY_APPLICATION
+                                },
+                            securityKeyHandleBase64 = "",
+                            securityKeyPublicKeyBase64 = "",
+                            securityKeyAuthorizedKey = "",
+                        )
+                },
+                onCopySecurityKeyAuthorizedKey = {
+                    val authorizedKey = draft.securityKeyAuthorizedKey.trim()
+                    if (authorizedKey.isBlank()) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.connection_security_key_copy_failed),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    } else {
+                        val clipboard = context.getSystemService(ClipboardManager::class.java)
+                        if (clipboard != null) {
+                            clipboard.setPrimaryClip(ClipData.newPlainText("ssh-security-key", authorizedKey))
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.connection_security_key_copy_success),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    }
+                },
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -846,6 +984,9 @@ private fun ConnectionFormFields(
     onMovePortForwardRule: (Int, Int) -> Unit,
     onRemovePortForwardRuleAt: (Int) -> Unit,
     onClearPortForwards: () -> Unit,
+    onEnrollSecurityKey: () -> Unit,
+    onClearSecurityKey: () -> Unit,
+    onCopySecurityKeyAuthorizedKey: () -> Unit,
 ) {
     if (identities.isNotEmpty()) {
         IdentitySelectorField(
@@ -1018,6 +1159,20 @@ private fun ConnectionFormFields(
         onClearPrivateKey = onClearPrivateKey,
         onClearCertificate = onClearCertificate,
         onGeneratePrivateKey = onGeneratePrivateKey,
+    )
+    ConnectionSecurityKeyField(
+        application = draft.securityKeyApplication,
+        isConfigured =
+            draft.securityKeyHandleBase64.isNotBlank() &&
+                draft.securityKeyPublicKeyBase64.isNotBlank() &&
+                draft.securityKeyApplication.isNotBlank(),
+        authorizedKey = draft.securityKeyAuthorizedKey,
+        onApplicationChange = { value ->
+            onDraftChange(draft.copy(securityKeyApplication = value))
+        },
+        onEnroll = onEnrollSecurityKey,
+        onClear = onClearSecurityKey,
+        onCopyAuthorizedKey = onCopySecurityKeyAuthorizedKey,
     )
 }
 
