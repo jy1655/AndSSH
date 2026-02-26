@@ -176,6 +176,14 @@ class TerminalViewModel
                     DEFAULT_TERMINAL_HARDWARE_KEY_BINDINGS,
                 )
 
+        val terminalInputMode: StateFlow<String> =
+            settingsRepository.terminalInputMode
+                .stateIn(
+                    viewModelScope,
+                    SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
+                    SettingsRepository.DEFAULT_TERMINAL_INPUT_MODE,
+                )
+
         init {
             viewModelScope.launch {
                 sessionManager.hasAnyConnected.collect { anyConnected ->
@@ -433,6 +441,12 @@ class TerminalViewModel
             if (clamped == terminalFontSizeSp.value) return
             viewModelScope.launch {
                 settingsRepository.setTerminalFontSizeSp(clamped)
+            }
+        }
+
+        fun setTerminalInputMode(mode: String) {
+            viewModelScope.launch {
+                settingsRepository.setTerminalInputMode(mode)
             }
         }
 

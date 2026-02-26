@@ -138,6 +138,8 @@
     <string name="terminal_paste">Paste</string>
     <string name="terminal_snippets_short">Snip</string>
     <string name="terminal_history_short">Hist</string>
+    <string name="terminal_input_mode_text_bar">Text</string>
+    <string name="terminal_input_mode_direct">Direct</string>
     <string name="terminal_history_title">Command History</string>
     <string name="terminal_history_empty">No recent commands</string>
     <string name="terminal_history_clear">Clear all</string>

@@ -138,6 +138,8 @@
     <string name="terminal_paste">붙여넣기</string>
     <string name="terminal_snippets_short">스니펫</string>
     <string name="terminal_history_short">히스토리</string>
+    <string name="terminal_input_mode_text_bar">텍스트</string>
+    <string name="terminal_input_mode_direct">직접</string>
     <string name="terminal_history_title">명령어 히스토리</string>
     <string name="terminal_history_empty">최근 명령어가 없습니다</string>
     <string name="terminal_history_clear">전체 삭제</string>

@@ -87,6 +87,11 @@ class SettingsRepository
                 prefs[TERMINAL_HARDWARE_KEY_BINDINGS_KEY] ?: DEFAULT_TERMINAL_HARDWARE_KEY_BINDINGS
             }
 
+        val terminalInputMode: Flow<String> =
+            dataStore.data.map { prefs ->
+                prefs[TERMINAL_INPUT_MODE_KEY] ?: DEFAULT_TERMINAL_INPUT_MODE
+            }
+
         suspend fun setLanguageTag(tag: String) {
             dataStore.edit { prefs -> prefs[LANGUAGE_TAG_KEY] = tag }
         }
@@ -155,6 +160,10 @@ class SettingsRepository
             }
         }
 
+        suspend fun setTerminalInputMode(mode: String) {
+            dataStore.edit { prefs -> prefs[TERMINAL_INPUT_MODE_KEY] = mode }
+        }
+
         companion object {
             private val LANGUAGE_TAG_KEY = stringPreferencesKey("pref_language_tag")
             private val THEME_PRESET_KEY = stringPreferencesKey("pref_theme_preset")
@@ -172,13 +181,14 @@ class SettingsRepository
             private val TERMINAL_SHORTCUT_LAYOUT_KEY = stringPreferencesKey("pref_terminal_shortcut_layout")
             private val TERMINAL_HARDWARE_KEY_BINDINGS_KEY =
                 stringPreferencesKey("pref_terminal_hardware_key_bindings")
+            private val TERMINAL_INPUT_MODE_KEY = stringPreferencesKey("pref_terminal_input_mode")
             const val DEFAULT_LANGUAGE_TAG = ""
             const val DEFAULT_THEME_PRESET = "green"
             const val DEFAULT_CLIPBOARD_TIMEOUT = 30
             const val DEFAULT_AUTO_LOCK_TIMEOUT = 60
             const val DEFAULT_TERMINAL_COLOR_SCHEME = "default"
             const val DEFAULT_TERMINAL_FONT = "meslo_nerd"
-            const val DEFAULT_TERMINAL_FONT_SIZE_SP = 12
+            const val DEFAULT_TERMINAL_FONT_SIZE_SP = 20
             const val MIN_TERMINAL_FONT_SIZE_SP = 8
             const val MAX_TERMINAL_FONT_SIZE_SP = 48
             const val DEFAULT_SSH_KEEPALIVE_INTERVAL = 15
@@ -186,5 +196,6 @@ class SettingsRepository
             const val DEFAULT_SCREENSHOT_PROTECTION_ENABLED = false
             const val DEFAULT_TERMINAL_HAPTIC_FEEDBACK_ENABLED = true
             const val DEFAULT_TERMINAL_CURSOR_STYLE = 0
+            const val DEFAULT_TERMINAL_INPUT_MODE = "direct"
         }
     }
