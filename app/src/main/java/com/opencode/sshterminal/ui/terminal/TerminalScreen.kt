@@ -1,6 +1,10 @@
+@file:Suppress("TooManyFunctions")
+
 package com.opencode.sshterminal.ui.terminal
 
+import android.graphics.Typeface
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -45,18 +49,33 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.core.content.res.ResourcesCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.opencode.sshterminal.R
 import com.opencode.sshterminal.data.ConnectionProfile
+import com.opencode.sshterminal.data.SettingsRepository
 import com.opencode.sshterminal.data.TerminalCommandHistoryEntry
 import com.opencode.sshterminal.data.TerminalSnippet
+import com.opencode.sshterminal.data.parseTerminalHardwareKeyBindings
 import com.opencode.sshterminal.session.HostKeyAlert
 import com.opencode.sshterminal.session.SessionSnapshot
 import com.opencode.sshterminal.session.TabId
 import com.opencode.sshterminal.session.TabInfo
+import com.opencode.sshterminal.terminal.TerminalFontPreset
+import com.opencode.sshterminal.terminal.TermuxTerminalBridge
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +99,7 @@ fun TerminalScreen(
     val terminalCursorStyle by viewModel.terminalCursorStyle.collectAsState()
     val terminalShortcutLayout by viewModel.terminalShortcutLayout.collectAsState()
     val terminalHardwareKeyBindings by viewModel.terminalHardwareKeyBindings.collectAsState()
+    val terminalInputMode by viewModel.terminalInputMode.collectAsState()
     var hadTabs by remember { mutableStateOf(false) }
     var showConnectionPicker by remember { mutableStateOf(false) }
     var showSnippetSheet by remember { mutableStateOf(false) }
@@ -153,6 +173,7 @@ fun TerminalScreen(
             terminalCursorStyle = terminalCursorStyle,
             terminalShortcutLayout = terminalShortcutLayout,
             terminalHardwareKeyBindings = terminalHardwareKeyBindings,
+            terminalInputMode = terminalInputMode,
             isSplitViewEnabled = isSplitViewEnabled,
             secondaryTabId = secondaryTabId,
             canSplitView = tabs.size > 1,
@@ -264,6 +285,7 @@ private data class TerminalScreenModel(
     val terminalCursorStyle: Int,
     val terminalShortcutLayout: String,
     val terminalHardwareKeyBindings: String,
+    val terminalInputMode: String,
     val isSplitViewEnabled: Boolean,
     val secondaryTabId: TabId?,
     val canSplitView: Boolean,
@@ -283,6 +305,7 @@ private data class TerminalScreenCallbacks(
 )
 
 private data class TerminalMainCallbacks(
+    val onSendBytes: (ByteArray) -> Unit,
     val onOpenDrawer: () -> Unit,
     val onShowConnectionPicker: () -> Unit,
     val onShowSnippets: () -> Unit,
@@ -352,6 +375,7 @@ private fun TerminalScaffold(
             scrollCounters = scrollCounters,
             callbacks =
                 TerminalMainCallbacks(
+                    onSendBytes = viewModel::sendInput,
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onShowConnectionPicker = callbacks.onShowConnectionPicker,
                     onShowSnippets = callbacks.onShowSnippets,
@@ -367,6 +391,7 @@ private fun TerminalScaffold(
 }
 
 @Composable
+@Suppress("CyclomaticComplexMethod", "LongMethod")
 private fun TerminalMainColumn(
     viewModel: TerminalViewModel,
     model: TerminalScreenModel,
@@ -374,6 +399,79 @@ private fun TerminalMainColumn(
     callbacks: TerminalMainCallbacks,
 ) {
     var imeFocusSignal by remember { mutableStateOf(0) }
+
+    val inputMode = TerminalInputMode.fromId(model.terminalInputMode)
+    val directModeEnabled = inputMode == TerminalInputMode.DIRECT
+    val controller =
+        rememberTerminalInputController(
+            onSendBytes = callbacks.onSendBytes,
+            onSubmitCommand = callbacks.onSubmitCommand,
+            directModeEnabled = directModeEnabled,
+        )
+
+    val context = LocalContext.current
+    val charSize =
+        remember(context, model.terminalFontId, model.terminalFontSizeSp) {
+            val fontSizeSp =
+                model.terminalFontSizeSp.coerceIn(
+                    SettingsRepository.MIN_TERMINAL_FONT_SIZE_SP,
+                    SettingsRepository.MAX_TERMINAL_FONT_SIZE_SP,
+                )
+            val preset = TerminalFontPreset.fromId(model.terminalFontId)
+            val typeface = ResourcesCompat.getFont(context, preset.fontResId) ?: Typeface.MONOSPACE
+            val renderer = com.termux.view.TerminalRenderer(fontSizeSp, typeface)
+            Size(renderer.fontWidth, renderer.fontLineSpacing.toFloat())
+        }
+
+    val parsedHardwareKeyBindings =
+        remember(model.terminalHardwareKeyBindings) {
+            parseTerminalHardwareKeyBindings(model.terminalHardwareKeyBindings)
+        }
+    val onHardwareKeyEvent: (KeyEvent) -> Boolean =
+        remember(parsedHardwareKeyBindings, callbacks.onPageScroll, controller) {
+            { keyEvent: KeyEvent ->
+                if (keyEvent.type != KeyEventType.KeyDown) {
+                    false
+                } else {
+                    val keyToken = mapAndroidKeyCodeToHardwareKeyToken(keyEvent.nativeKeyEvent.keyCode)
+                    val action =
+                        keyToken?.let { token ->
+                            resolveTerminalHardwareKeyAction(
+                                bindings = parsedHardwareKeyBindings,
+                                key = token,
+                                ctrl = keyEvent.isCtrlPressed,
+                                alt = keyEvent.isAltPressed,
+                                shift = keyEvent.isShiftPressed,
+                                meta = keyEvent.isMetaPressed,
+                            )
+                        }
+                    if (action == null) {
+                        false
+                    } else {
+                        dispatchHardwareKeyAction(
+                            action = action,
+                            controller = controller,
+                            onPageScroll = callbacks.onPageScroll,
+                        )
+                    }
+                }
+            }
+        }
+
+    val onToggleInputMode =
+        remember(viewModel, inputMode) {
+            {
+                val next =
+                    if (inputMode == TerminalInputMode.DIRECT) {
+                        TerminalInputMode.TEXT_BAR
+                    } else {
+                        TerminalInputMode.DIRECT
+                    }
+                viewModel.setTerminalInputMode(next.id)
+                imeFocusSignal++
+                Unit
+            }
+        }
 
     Column(
         modifier =
@@ -419,17 +517,19 @@ private fun TerminalMainColumn(
                         .fillMaxWidth()
                         .weight(1f),
             ) {
-                TerminalRenderer(
+                TerminalPaneWithInput(
                     bridge = activeBridge,
-                    terminalColorSchemeId = model.terminalColorSchemeId,
-                    terminalFontId = model.terminalFontId,
-                    terminalFontSizeSp = model.terminalFontSizeSp,
-                    terminalCursorStyle = model.terminalCursorStyle,
+                    model = model,
+                    inputMode = inputMode,
+                    controller = controller,
+                    charSize = charSize,
+                    onHardwareKeyEvent = onHardwareKeyEvent,
+                    imeFocusSignal = imeFocusSignal,
+                    scrollCounters = scrollCounters,
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .weight(1f),
-                    scrollCounters = scrollCounters,
                     callbacks =
                         TerminalRendererCallbacks(
                             onTap = {
@@ -465,17 +565,19 @@ private fun TerminalMainColumn(
                 )
             }
         } else {
-            TerminalRenderer(
+            TerminalPaneWithInput(
                 bridge = activeBridge,
-                terminalColorSchemeId = model.terminalColorSchemeId,
-                terminalFontId = model.terminalFontId,
-                terminalFontSizeSp = model.terminalFontSizeSp,
-                terminalCursorStyle = model.terminalCursorStyle,
+                model = model,
+                inputMode = inputMode,
+                controller = controller,
+                charSize = charSize,
+                onHardwareKeyEvent = onHardwareKeyEvent,
+                imeFocusSignal = imeFocusSignal,
+                scrollCounters = scrollCounters,
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                scrollCounters = scrollCounters,
                 callbacks =
                     TerminalRendererCallbacks(
                         onTap = { imeFocusSignal++ },
@@ -497,11 +599,13 @@ private fun TerminalMainColumn(
         }
 
         TerminalInputBar(
-            onSendBytes = viewModel::sendInput,
+            controller = controller,
+            inputMode = inputMode,
+            onToggleInputMode = onToggleInputMode,
+            onSendBytes = callbacks.onSendBytes,
             onMenuClick = callbacks.onOpenDrawer,
             onSnippetClick = callbacks.onShowSnippets,
             onHistoryClick = callbacks.onShowHistory,
-            onSubmitCommand = callbacks.onSubmitCommand,
             onPageScroll = callbacks.onPageScroll,
             isHapticFeedbackEnabled = model.terminalHapticFeedbackEnabled,
             shortcutLayout = model.terminalShortcutLayout,
@@ -510,6 +614,51 @@ private fun TerminalMainColumn(
             focusSignal = imeFocusSignal,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+@Composable
+@Suppress("LongParameterList")
+private fun TerminalPaneWithInput(
+    bridge: TermuxTerminalBridge,
+    model: TerminalScreenModel,
+    inputMode: TerminalInputMode,
+    controller: TerminalInputController,
+    charSize: Size,
+    onHardwareKeyEvent: (KeyEvent) -> Boolean,
+    imeFocusSignal: Int,
+    scrollCounters: TerminalScrollCounters = TerminalScrollCounters(),
+    callbacks: TerminalRendererCallbacks = TerminalRendererCallbacks(),
+    modifier: Modifier = Modifier,
+) {
+    var terminalSize by remember { mutableStateOf(IntSize.Zero) }
+    Box(modifier = modifier.onSizeChanged { terminalSize = it }) {
+        TerminalRenderer(
+            bridge = bridge,
+            terminalColorSchemeId = model.terminalColorSchemeId,
+            terminalFontId = model.terminalFontId,
+            terminalFontSizeSp = model.terminalFontSizeSp,
+            terminalCursorStyle = model.terminalCursorStyle,
+            modifier = Modifier.fillMaxSize(),
+            scrollCounters = scrollCounters,
+            callbacks = callbacks,
+        )
+        if (inputMode == TerminalInputMode.DIRECT) {
+            TerminalDirectInput(
+                controller = controller,
+                focusSignal = imeFocusSignal,
+                onHardwareKeyEvent = onHardwareKeyEvent,
+            )
+            if (controller.isComposing) {
+                TerminalCompositionOverlay(
+                    composingText = controller.composingText,
+                    cursorOffsetX = bridge.cursorCol * charSize.width,
+                    cursorOffsetY = bridge.cursorRow * charSize.height,
+                    charHeight = charSize.height,
+                    terminalSize = terminalSize,
+                )
+            }
+        }
     }
 }
 
