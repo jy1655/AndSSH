@@ -37,6 +37,7 @@ app/release/
 app/debug/
 *.apk
 *.aab
+/release/
 
 # NDK
 obj/
