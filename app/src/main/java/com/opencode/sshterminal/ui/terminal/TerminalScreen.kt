@@ -185,6 +185,16 @@ fun TerminalScreen(
             onShowSnippets = { showSnippetSheet = true },
             onShowHistory = { showHistorySheet = true },
             onToggleFocusMode = { isFocusMode = !isFocusMode },
+            onToggleInputMode = {
+                val current = TerminalInputMode.fromId(terminalInputMode)
+                val next =
+                    if (current == TerminalInputMode.DIRECT) {
+                        TerminalInputMode.TEXT_BAR
+                    } else {
+                        TerminalInputMode.DIRECT
+                    }
+                viewModel.setTerminalInputMode(next.id)
+            },
             onToggleSplitView = {
                 if (tabs.size >= 2) {
                     isSplitViewEnabled = !isSplitViewEnabled
@@ -297,6 +307,7 @@ private data class TerminalScreenCallbacks(
     val onShowSnippets: () -> Unit,
     val onShowHistory: () -> Unit,
     val onToggleFocusMode: () -> Unit,
+    val onToggleInputMode: () -> Unit,
     val onToggleSplitView: () -> Unit,
     val onCycleSplitPane: () -> Unit,
     val onPageScroll: (Int) -> Unit,
@@ -361,9 +372,11 @@ private fun TerminalScaffold(
                 drawerState = drawerState,
                 connectionInfo = model.connectionInfo,
                 isFocusMode = model.isFocusMode,
+                isTextInputEnabled = TerminalInputMode.fromId(model.terminalInputMode) == TerminalInputMode.TEXT_BAR,
                 onTerminal = { },
                 onSftp = { model.activeConnectionId?.let(callbacks.onNavigateToSftp) },
                 onToggleFocusMode = callbacks.onToggleFocusMode,
+                onToggleTextInput = callbacks.onToggleInputMode,
                 onDisconnect = { viewModel.disconnectActiveTab() },
             )
         },

@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.HorizontalDivider
@@ -31,9 +32,11 @@ fun AppDrawer(
     drawerState: DrawerState,
     connectionInfo: String,
     isFocusMode: Boolean,
+    isTextInputEnabled: Boolean,
     onTerminal: () -> Unit,
     onSftp: () -> Unit,
     onToggleFocusMode: () -> Unit,
+    onToggleTextInput: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -94,6 +97,24 @@ fun AppDrawer(
             },
             selected = isFocusMode,
             onClick = { close(onToggleFocusMode) },
+            modifier = Modifier.fillMaxWidth().padding(NavigationDrawerItemDefaults.ItemPadding),
+        )
+
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Default.Keyboard, contentDescription = null) },
+            label = {
+                Text(
+                    stringResource(
+                        if (isTextInputEnabled) {
+                            R.string.drawer_disable_text_input
+                        } else {
+                            R.string.drawer_enable_text_input
+                        },
+                    ),
+                )
+            },
+            selected = isTextInputEnabled,
+            onClick = { close(onToggleTextInput) },
             modifier = Modifier.fillMaxWidth().padding(NavigationDrawerItemDefaults.ItemPadding),
         )
 
