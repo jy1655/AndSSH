@@ -643,9 +643,10 @@ private fun TerminalPaneWithInput(
                 focusSignal = imeFocusSignal,
                 onHardwareKeyEvent = onHardwareKeyEvent,
             )
-            if (controller.isComposing) {
+            val composingOverlayText = controller.composingText
+            if (composingOverlayText.isNotEmpty()) {
                 TerminalCompositionOverlay(
-                    composingText = controller.composingText,
+                    composingText = composingOverlayText,
                     cursorOffsetX = bridge.cursorCol * charSize.width,
                     cursorOffsetY = bridge.cursorRow * charSize.height,
                     charHeight = charSize.height,
