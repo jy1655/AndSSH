@@ -470,21 +470,6 @@ private fun TerminalMainColumn(
             }
         }
 
-    val onToggleInputMode =
-        remember(viewModel, inputMode) {
-            {
-                val next =
-                    if (inputMode == TerminalInputMode.DIRECT) {
-                        TerminalInputMode.TEXT_BAR
-                    } else {
-                        TerminalInputMode.DIRECT
-                    }
-                viewModel.setTerminalInputMode(next.id)
-                imeFocusSignal++
-                Unit
-            }
-        }
-
     Column(
         modifier =
             Modifier
@@ -613,7 +598,6 @@ private fun TerminalMainColumn(
         TerminalInputBar(
             controller = controller,
             inputMode = inputMode,
-            onToggleInputMode = onToggleInputMode,
             onSendBytes = callbacks.onSendBytes,
             onMenuClick = callbacks.onOpenDrawer,
             onSnippetClick = callbacks.onShowSnippets,

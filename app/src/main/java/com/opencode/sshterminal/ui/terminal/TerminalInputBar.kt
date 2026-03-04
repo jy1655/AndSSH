@@ -61,7 +61,6 @@ import com.opencode.sshterminal.data.parseTerminalShortcutLayout
 internal fun TerminalInputBar(
     controller: TerminalInputController,
     inputMode: TerminalInputMode,
-    onToggleInputMode: () -> Unit,
     onSendBytes: (ByteArray) -> Unit,
     onMenuClick: (() -> Unit)? = null,
     onSnippetClick: (() -> Unit)? = null,
@@ -172,20 +171,9 @@ internal fun TerminalInputBar(
                         onHardwareKeyEvent = onHardwareKeyEvent,
                         onKeyTap = onKeyTap,
                     )
-                    TerminalInputModeToggleRow(
-                        label = stringResource(R.string.terminal_input_mode_direct),
-                        onToggle = onToggleInputMode,
-                        onKeyTap = onKeyTap,
-                    )
                 }
 
-                TerminalInputMode.DIRECT -> {
-                    TerminalInputModeToggleRow(
-                        label = stringResource(R.string.terminal_input_mode_text_bar),
-                        onToggle = onToggleInputMode,
-                        onKeyTap = onKeyTap,
-                    )
-                }
+                TerminalInputMode.DIRECT -> Unit
             }
         }
     }
@@ -571,23 +559,6 @@ private fun TerminalTextInputRow(
         )
 
         KeyChip("\u23CE", onTap = onKeyTap, onClick = onSubmit)
-    }
-}
-
-@Composable
-private fun TerminalInputModeToggleRow(
-    label: String,
-    onToggle: () -> Unit,
-    onKeyTap: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 1.dp),
-        horizontalArrangement = Arrangement.Start,
-    ) {
-        KeyChip(label = label, onTap = onKeyTap, onClick = onToggle)
     }
 }
 
