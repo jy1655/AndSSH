@@ -305,6 +305,7 @@ private data class TerminalScreenCallbacks(
 private data class TerminalMainCallbacks(
     val onSendBytes: (ByteArray) -> Unit,
     val onOpenDrawer: () -> Unit,
+    val onToggleFocusMode: () -> Unit,
     val onShowConnectionPicker: () -> Unit,
     val onShowSnippets: () -> Unit,
     val onShowHistory: () -> Unit,
@@ -375,6 +376,7 @@ private fun TerminalScaffold(
                 TerminalMainCallbacks(
                     onSendBytes = viewModel::sendInput,
                     onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onToggleFocusMode = callbacks.onToggleFocusMode,
                     onShowConnectionPicker = callbacks.onShowConnectionPicker,
                     onShowSnippets = callbacks.onShowSnippets,
                     onShowHistory = callbacks.onShowHistory,
@@ -608,6 +610,8 @@ private fun TerminalMainColumn(
             shortcutLayout = model.terminalShortcutLayout,
             hardwareKeyBindings = model.terminalHardwareKeyBindings,
             showShortcutRow = !model.isFocusMode,
+            isFocusMode = model.isFocusMode,
+            onExitFocusMode = callbacks.onToggleFocusMode,
             focusSignal = imeFocusSignal,
             modifier = Modifier.fillMaxWidth(),
         )

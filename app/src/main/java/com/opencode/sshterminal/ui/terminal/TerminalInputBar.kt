@@ -71,6 +71,8 @@ internal fun TerminalInputBar(
     shortcutLayout: String,
     hardwareKeyBindings: String,
     showShortcutRow: Boolean = true,
+    isFocusMode: Boolean = false,
+    onExitFocusMode: (() -> Unit)? = null,
     focusSignal: Int = 0,
     modifier: Modifier = Modifier,
 ) {
@@ -141,7 +143,13 @@ internal fun TerminalInputBar(
                     .padding(horizontal = 4.dp, vertical = 3.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            if (showShortcutRow) {
+            if (isFocusMode) {
+                FocusModeShortcutRow(
+                    onMenuClick = onMenuClick,
+                    onExitFocusMode = onExitFocusMode,
+                    onKeyTap = onKeyTap,
+                )
+            } else if (showShortcutRow) {
                 TerminalShortcutRow(
                     state =
                         TerminalModifierState(
@@ -179,6 +187,36 @@ internal fun TerminalInputBar(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FocusModeShortcutRow(
+    onMenuClick: (() -> Unit)?,
+    onExitFocusMode: (() -> Unit)?,
+    onKeyTap: () -> Unit,
+) {
+    if (onMenuClick == null && onExitFocusMode == null) {
+        return
+    }
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        onMenuClick?.let {
+            KeyChip("\u2630", onTap = onKeyTap, onClick = it)
+        }
+        onExitFocusMode?.let {
+            KeyChip(
+                label = stringResource(R.string.drawer_exit_focus_mode),
+                onTap = onKeyTap,
+                onClick = it,
+            )
         }
     }
 }
