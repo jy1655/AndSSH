@@ -862,10 +862,10 @@ private fun ConnectionBottomSheet(
                         val isUsernameBlank = draft.username.isBlank()
                         hostError = isHostBlank
                         usernameError = isUsernameBlank
-                        if (isHostBlank) {
-                            hostFocusRequester.requestFocus()
-                        } else if (isUsernameBlank) {
+                        if (isUsernameBlank) {
                             usernameFocusRequester.requestFocus()
+                        } else if (isHostBlank) {
+                            hostFocusRequester.requestFocus()
                         } else {
                             draft.toProfileOrNull(initial, selectedIdentityId)?.let { profile ->
                                 draft = draft.clearSensitiveFields()
@@ -920,6 +920,67 @@ private fun ConnectionFormFields(
         modifier = Modifier.fillMaxWidth(),
     )
     OutlinedTextField(
+        value = draft.username,
+        onValueChange = {
+            onDraftChange(draft.copy(username = it))
+            onUsernameChange()
+        },
+        label = { Text(stringResource(R.string.connection_label_username)) },
+        singleLine = true,
+        isError = usernameError,
+        supportingText = if (usernameError) {
+            { Text(stringResource(R.string.connection_error_username_required)) }
+        } else {
+            null
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(usernameFocusRequester),
+    )
+    OutlinedTextField(
+        value = draft.host,
+        onValueChange = {
+            onDraftChange(draft.copy(host = it))
+            onHostChange()
+        },
+        label = { Text(stringResource(R.string.connection_label_host)) },
+        singleLine = true,
+        isError = hostError,
+        supportingText = if (hostError) {
+            { Text(stringResource(R.string.connection_error_host_required)) }
+        } else {
+            null
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(hostFocusRequester),
+    )
+    OutlinedTextField(
+        value = draft.port,
+        onValueChange = { onDraftChange(draft.copy(port = it)) },
+        label = { Text(stringResource(R.string.connection_label_port)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.password,
+        onValueChange = { onDraftChange(draft.copy(password = it)) },
+        label = { Text(stringResource(R.string.connection_label_password_optional)) },
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    ConnectionPrivateKeyField(
+        privateKeyPath = draft.privateKeyPath,
+        certificatePath = draft.certificatePath,
+        privateKeyPassphrase = draft.privateKeyPassphrase,
+        onPrivateKeyPassphraseChange = { onDraftChange(draft.copy(privateKeyPassphrase = it)) },
+        onPickPrivateKey = onPickPrivateKey,
+        onPickCertificate = onPickCertificate,
+        onClearPrivateKey = onClearPrivateKey,
+        onClearCertificate = onClearCertificate,
+    )
+    OutlinedTextField(
         value = draft.group,
         onValueChange = { onDraftChange(draft.copy(group = it)) },
         label = { Text(stringResource(R.string.connection_label_group_optional)) },
@@ -961,24 +1022,6 @@ private fun ConnectionFormFields(
         placeholder = { Text(stringResource(R.string.connection_environment_variables_placeholder)) },
         maxLines = 6,
         modifier = Modifier.fillMaxWidth(),
-    )
-    OutlinedTextField(
-        value = draft.host,
-        onValueChange = {
-            onDraftChange(draft.copy(host = it))
-            onHostChange()
-        },
-        label = { Text(stringResource(R.string.connection_label_host)) },
-        singleLine = true,
-        isError = hostError,
-        supportingText = if (hostError) {
-            { Text(stringResource(R.string.connection_error_host_required)) }
-        } else {
-            null
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .focusRequester(hostFocusRequester),
     )
     OutlinedTextField(
         value = draft.proxyJump,
@@ -1053,49 +1096,6 @@ private fun ConnectionFormFields(
         onMoveRule = onMovePortForwardRule,
         onRemoveRuleAt = onRemovePortForwardRuleAt,
         onClear = onClearPortForwards,
-    )
-    OutlinedTextField(
-        value = draft.port,
-        onValueChange = { onDraftChange(draft.copy(port = it)) },
-        label = { Text(stringResource(R.string.connection_label_port)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    OutlinedTextField(
-        value = draft.username,
-        onValueChange = {
-            onDraftChange(draft.copy(username = it))
-            onUsernameChange()
-        },
-        label = { Text(stringResource(R.string.connection_label_username)) },
-        singleLine = true,
-        isError = usernameError,
-        supportingText = if (usernameError) {
-            { Text(stringResource(R.string.connection_error_username_required)) }
-        } else {
-            null
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .focusRequester(usernameFocusRequester),
-    )
-    OutlinedTextField(
-        value = draft.password,
-        onValueChange = { onDraftChange(draft.copy(password = it)) },
-        label = { Text(stringResource(R.string.connection_label_password_optional)) },
-        singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
-        modifier = Modifier.fillMaxWidth(),
-    )
-    ConnectionPrivateKeyField(
-        privateKeyPath = draft.privateKeyPath,
-        certificatePath = draft.certificatePath,
-        privateKeyPassphrase = draft.privateKeyPassphrase,
-        onPrivateKeyPassphraseChange = { onDraftChange(draft.copy(privateKeyPassphrase = it)) },
-        onPickPrivateKey = onPickPrivateKey,
-        onPickCertificate = onPickCertificate,
-        onClearPrivateKey = onClearPrivateKey,
-        onClearCertificate = onClearCertificate,
     )
 }
 
