@@ -110,32 +110,6 @@ internal fun rememberConnectionPrivateKeyGenerator(onGenerated: (String) -> Unit
 }
 
 @Composable
-internal fun rememberConnectionSshConfigPicker(
-    onImported: (String) -> Unit,
-    onFailed: () -> Unit,
-): () -> Unit {
-    val context = LocalContext.current
-    val configPicker =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent(),
-        ) { uri: Uri? ->
-            if (uri == null) return@rememberLauncherForActivityResult
-            val content =
-                runCatching {
-                    context.contentResolver.openInputStream(uri)?.bufferedReader().use { reader ->
-                        reader?.readText()
-                    }
-                }.getOrNull()
-            if (content.isNullOrBlank()) {
-                onFailed()
-            } else {
-                onImported(content)
-            }
-        }
-    return { configPicker.launch("*/*") }
-}
-
-@Composable
 @Suppress("LongMethod", "LongParameterList")
 internal fun ConnectionPrivateKeyField(
     privateKeyPath: String,

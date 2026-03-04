@@ -85,11 +85,6 @@
     <string name="connection_private_key_import_failed">Failed to import private key file.</string>
     <string name="connection_certificate_import_failed">Failed to import certificate file.</string>
     <string name="connection_private_key_generate_failed">Failed to generate private key file.</string>
-    <string name="connection_import_ssh_config">Import</string>
-    <string name="connection_import_result">Imported %1$d host(s)</string>
-    <string name="connection_import_result_with_skipped">Imported %1$d host(s), skipped %2$d</string>
-    <string name="connection_import_no_valid_hosts">No importable hosts found (skipped %1$d)</string>
-    <string name="connection_import_failed">Failed to import SSH config file.</string>
     <string name="connection_identity_selector_label">Identity</string>
     <string name="connection_identity_manual">Manual credentials</string>
     <string name="connection_port_forward_rules_title">Port Forwarding Rules</string>

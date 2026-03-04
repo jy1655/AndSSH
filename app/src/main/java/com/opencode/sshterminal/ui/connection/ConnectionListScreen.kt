@@ -1,6 +1,4 @@
 package com.opencode.sshterminal.ui.connection
-
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -54,7 +52,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -78,7 +75,6 @@ fun ConnectionListScreen(
     onOpenSettings: () -> Unit,
     viewModel: ConnectionListViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
     val profiles by viewModel.profiles.collectAsState()
     val identities by viewModel.identities.collectAsState()
     var editingProfile by remember { mutableStateOf<ConnectionProfile?>(null) }
@@ -117,50 +113,9 @@ fun ConnectionListScreen(
                 sortOption = sortOption,
             )
         }
-    val sshConfigPicker =
-        rememberConnectionSshConfigPicker(
-            onImported = { content ->
-                viewModel.importFromSshConfig(content) { summary ->
-                    val message =
-                        when {
-                            summary.importedCount <= 0 -> {
-                                context.getString(
-                                    R.string.connection_import_no_valid_hosts,
-                                    summary.skippedCount,
-                                )
-                            }
-
-                            summary.skippedCount > 0 -> {
-                                context.getString(
-                                    R.string.connection_import_result_with_skipped,
-                                    summary.importedCount,
-                                    summary.skippedCount,
-                                )
-                            }
-
-                            else -> {
-                                context.getString(
-                                    R.string.connection_import_result,
-                                    summary.importedCount,
-                                )
-                            }
-                        }
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                }
-            },
-            onFailed = {
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.connection_import_failed),
-                    Toast.LENGTH_SHORT,
-                ).show()
-            },
-        )
-
     Scaffold(
         topBar = {
             ConnectionListTopBar(
-                onImportSshConfig = sshConfigPicker,
                 onQuickConnect = { showQuickConnectDialog = true },
                 onOpenSettings = onOpenSettings,
             )

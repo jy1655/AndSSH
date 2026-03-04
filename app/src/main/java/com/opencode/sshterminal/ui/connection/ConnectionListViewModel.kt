@@ -6,20 +6,13 @@ import com.opencode.sshterminal.data.ConnectionIdentity
 import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionProtocol
 import com.opencode.sshterminal.data.ConnectionRepository
-import com.opencode.sshterminal.data.parseSshConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
-
-data class SshConfigImportSummary(
-    val importedCount: Int,
-    val skippedCount: Int,
-)
 
 data class QuickConnectInput(
     val host: String,
@@ -115,57 +108,6 @@ class ConnectionListViewModel
 
         fun delete(id: String) {
             viewModelScope.launch { repository.delete(id) }
-        }
-
-        fun importFromSshConfig(
-            content: String,
-            onComplete: (SshConfigImportSummary) -> Unit,
-        ) {
-            viewModelScope.launch {
-                val parseResult = parseSshConfig(content)
-                val existingByName = repository.profiles.first().associateBy { profile -> profile.name }
-                var imported = 0
-
-                parseResult.hosts.forEach { importedHost ->
-                    val existing = existingByName[importedHost.alias]
-                    val identity =
-                        repository.upsertIdentity(
-                            existingIdentityId = existing?.identityId,
-                            displayName = "${importedHost.user}@${importedHost.hostName}",
-                            username = importedHost.user,
-                            password = null,
-                            privateKeyPath = importedHost.identityFile,
-                            certificatePath = importedHost.certificateFile,
-                            privateKeyPassphrase = null,
-                        )
-                    val profile =
-                        ConnectionProfile(
-                            id = existing?.id ?: UUID.randomUUID().toString(),
-                            name = importedHost.alias,
-                            host = importedHost.hostName,
-                            port = importedHost.port,
-                            username = identity.username,
-                            password = identity.password,
-                            privateKeyPath = identity.privateKeyPath,
-                            certificatePath = identity.certificatePath,
-                            privateKeyPassphrase = identity.privateKeyPassphrase,
-                            identityId = identity.id,
-                            forwardAgent = importedHost.forwardAgent,
-                            proxyJump = importedHost.proxyJump,
-                            portForwards = importedHost.portForwards,
-                            lastUsedEpochMillis = existing?.lastUsedEpochMillis ?: System.currentTimeMillis(),
-                        )
-                    repository.save(profile)
-                    imported += 1
-                }
-
-                onComplete(
-                    SshConfigImportSummary(
-                        importedCount = imported,
-                        skippedCount = parseResult.skippedHostEntries,
-                    ),
-                )
-            }
         }
 
         companion object {
