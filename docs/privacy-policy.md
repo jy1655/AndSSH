@@ -69,4 +69,4 @@ We may update this policy as the app evolves. The "Last updated" date above indi
 
 For privacy questions, open an issue in the project repository:
 
-- https://github.com/jy1655/android-ssh/issues
+- https://github.com/jy1655/AndSSH/issues

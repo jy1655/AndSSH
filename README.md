@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jy1655/android-ssh/actions"><img src="https://github.com/jy1655/android-ssh/actions/workflows/android-ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/jy1655/AndSSH/actions"><img src="https://github.com/jy1655/AndSSH/actions/workflows/android-ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/platform-Android%2026%2B-green.svg" alt="Platform" />
 </p>
@@ -225,13 +225,13 @@ Contributions are welcome. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) befo
 
 ## Security
 
-If you discover a vulnerability, **do not open a public issue**. Follow the process in [`SECURITY.md`](SECURITY.md) — preferably via [GitHub Security Advisories](https://github.com/jy1655/android-ssh/security/advisories/new).
+If you discover a vulnerability, **do not open a public issue**. Follow the process in [`SECURITY.md`](SECURITY.md) — preferably via [GitHub Security Advisories](https://github.com/jy1655/AndSSH/security/advisories/new).
 
 ## Privacy Policy
 
 - Source: [`docs/privacy-policy.md`](docs/privacy-policy.md)
 - Public URL for Google Play Console:
-  - https://github.com/jy1655/android-ssh/blob/main/docs/privacy-policy.md
+  - https://github.com/jy1655/AndSSH/blob/main/docs/privacy-policy.md
 
 ## License
 

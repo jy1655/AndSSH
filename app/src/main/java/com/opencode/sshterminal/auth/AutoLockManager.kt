@@ -19,8 +19,13 @@ class AutoLockManager
         private val authRepository: AuthRepository,
     ) : DefaultLifecycleObserver {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        @Volatile
         private var appLockEnabled = false
+
+        @Volatile
         private var backgroundTimestamp: Long = 0L
+
+        @Volatile
         private var timeoutSeconds: Int = SettingsRepository.DEFAULT_AUTO_LOCK_TIMEOUT
 
         init {

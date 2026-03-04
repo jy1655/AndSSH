@@ -1,6 +1,5 @@
 package com.opencode.sshterminal.service
 
-import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -18,7 +17,6 @@ class SshForegroundService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
 
-    @SuppressLint("WakelockTimeout")
     override fun onCreate() {
         super.onCreate()
         val channelId = ensureChannel()
@@ -27,7 +25,7 @@ class SshForegroundService : Service() {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock =
             pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SshForegroundService:WakeLock").apply {
-                acquire()
+                acquire(WAKELOCK_TIMEOUT_MS)
             }
 
         val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
@@ -72,7 +70,7 @@ class SshForegroundService : Service() {
 
     private fun buildNotification(channelId: String): Notification {
         return NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.fgs_notification_title))
             .setContentText(getString(R.string.fgs_notification_body))
             .setOngoing(true)
@@ -81,5 +79,6 @@ class SshForegroundService : Service() {
 
     companion object {
         private const val NOTIFICATION_ID = 2001
+        private const val WAKELOCK_TIMEOUT_MS = 4 * 60 * 60 * 1000L // 4 hours
     }
 }

@@ -53,7 +53,7 @@ class BellNotifier
 
             val notification =
                 NotificationCompat.Builder(context, CHANNEL_ID)
-                    .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+                    .setSmallIcon(R.drawable.ic_notification)
                     .setContentTitle(context.getString(R.string.bell_notification_title))
                     .setContentText(context.getString(R.string.bell_notification_body, tabTitle))
                     .setContentIntent(pendingIntent)

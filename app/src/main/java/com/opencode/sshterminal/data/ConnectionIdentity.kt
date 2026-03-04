@@ -13,4 +13,9 @@ data class ConnectionIdentity(
     val certificatePath: String? = null,
     val privateKeyPassphrase: String? = null,
     val lastUsedEpochMillis: Long = 0L,
-)
+) {
+    override fun toString(): String =
+        "ConnectionIdentity(id=$id, name=$name, username=$username, hasPassword=${password != null}, " +
+            "privateKeyPath=$privateKeyPath, certificatePath=$certificatePath, " +
+            "hasPassphrase=${privateKeyPassphrase != null})"
+}

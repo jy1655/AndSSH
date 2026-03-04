@@ -32,3 +32,11 @@
 # ── AndroidX Security / Tink ────────────────────
 -keep class com.google.crypto.tink.** { *; }
 -dontwarn com.google.crypto.tink.**
+
+# ── Strip Log calls in release ──────────────────
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+    public static int w(...);
+}

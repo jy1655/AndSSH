@@ -5,14 +5,13 @@ import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.os.PersistableBundle
 import com.opencode.sshterminal.data.SettingsRepository
 import com.opencode.sshterminal.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -28,8 +27,6 @@ class SensitiveClipboardManager
     ) {
         private val clipboardManager: ClipboardManager =
             context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        private val mainHandler = Handler(Looper.getMainLooper())
-        private var pendingClearRunnable: Runnable? = null
         private var pendingClearJob: Job? = null
 
         fun copyToClipboard(
@@ -56,21 +53,14 @@ class SensitiveClipboardManager
                     if (!shouldScheduleClipboardAutoClear(timeoutSeconds)) {
                         return@launch
                     }
-                    val clearRunnable =
-                        Runnable {
-                            clearClipboard()
-                            pendingClearRunnable = null
-                        }
-                    pendingClearRunnable = clearRunnable
-                    mainHandler.postDelayed(clearRunnable, timeoutSeconds * 1_000L)
+                    delay(timeoutSeconds * 1_000L)
+                    clearClipboard()
                 }
         }
 
         fun cancelPendingClear() {
             pendingClearJob?.cancel()
             pendingClearJob = null
-            pendingClearRunnable?.let(mainHandler::removeCallbacks)
-            pendingClearRunnable = null
         }
 
         private fun clearClipboard() {
