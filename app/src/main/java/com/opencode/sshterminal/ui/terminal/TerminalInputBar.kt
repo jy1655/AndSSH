@@ -30,7 +30,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isAltPressed
@@ -40,7 +39,6 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -66,7 +64,6 @@ internal fun TerminalInputBar(
     onSnippetClick: (() -> Unit)? = null,
     onHistoryClick: (() -> Unit)? = null,
     onPageScroll: ((Int) -> Unit)? = null,
-    isHapticFeedbackEnabled: Boolean = true,
     shortcutLayout: String,
     hardwareKeyBindings: String,
     showShortcutRow: Boolean = true,
@@ -75,15 +72,7 @@ internal fun TerminalInputBar(
     focusSignal: Int = 0,
     modifier: Modifier = Modifier,
 ) {
-    val hapticFeedback = LocalHapticFeedback.current
-    val onKeyTap =
-        remember(hapticFeedback, isHapticFeedbackEnabled) {
-            {
-                if (isHapticFeedbackEnabled) {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                }
-            }
-        }
+    val onKeyTap = remember { {} }
 
     val shortcutActions =
         TerminalShortcutActions(

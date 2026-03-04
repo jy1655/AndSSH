@@ -33,7 +33,6 @@ data class SettingsUiState(
     val terminalFont: String = "meslo_nerd",
     val terminalFontSizeSp: Int = SettingsRepository.DEFAULT_TERMINAL_FONT_SIZE_SP,
     val terminalCursorStyle: Int = SettingsRepository.DEFAULT_TERMINAL_CURSOR_STYLE,
-    val terminalHapticFeedbackEnabled: Boolean = SettingsRepository.DEFAULT_TERMINAL_HAPTIC_FEEDBACK_ENABLED,
     val terminalShortcutLayout: String = DEFAULT_TERMINAL_SHORTCUT_LAYOUT,
     val terminalHardwareKeyBindings: String = DEFAULT_TERMINAL_HARDWARE_KEY_BINDINGS,
     val clipboardTimeoutSeconds: Int = 30,
@@ -64,17 +63,6 @@ class SettingsViewModel
                     themePresetId = themeId,
                     autoLockTimeoutSeconds = autoLockTimeout,
                     screenshotProtectionEnabled = screenshotProtectionEnabled,
-                )
-            }
-
-        private val terminalInputFeedbackFlow =
-            combine(
-                settingsRepository.terminalHapticFeedbackEnabled,
-                settingsRepository.terminalCursorStyle,
-            ) { hapticFeedbackEnabled, cursorStyle ->
-                TerminalInputFeedbackPreferences(
-                    hapticFeedbackEnabled = hapticFeedbackEnabled,
-                    cursorStyle = cursorStyle,
                 )
             }
 
@@ -109,10 +97,10 @@ class SettingsViewModel
         private val terminalPreferencesFlow =
             combine(
                 terminalCorePreferencesFlow,
-                terminalInputFeedbackFlow,
+                settingsRepository.terminalCursorStyle,
                 settingsRepository.terminalShortcutLayout,
                 settingsRepository.terminalHardwareKeyBindings,
-            ) { corePrefs, feedbackPrefs, shortcutLayout, hardwareKeyBindings ->
+            ) { corePrefs, cursorStyle, shortcutLayout, hardwareKeyBindings ->
                 TerminalPreferences(
                     colorScheme = corePrefs.colorScheme,
                     font = corePrefs.font,
@@ -122,8 +110,7 @@ class SettingsViewModel
                     sshCompressionEnabled = corePrefs.sshCompressionEnabled,
                     terminalShortcutLayout = shortcutLayout,
                     terminalHardwareKeyBindings = hardwareKeyBindings,
-                    terminalHapticFeedbackEnabled = feedbackPrefs.hapticFeedbackEnabled,
-                    terminalCursorStyle = feedbackPrefs.cursorStyle,
+                    terminalCursorStyle = cursorStyle,
                 )
             }
 
@@ -142,7 +129,6 @@ class SettingsViewModel
                     sshCompressionEnabled = terminalPrefs.sshCompressionEnabled,
                     terminalShortcutLayout = terminalPrefs.terminalShortcutLayout,
                     terminalHardwareKeyBindings = terminalPrefs.terminalHardwareKeyBindings,
-                    terminalHapticFeedbackEnabled = terminalPrefs.terminalHapticFeedbackEnabled,
                     terminalCursorStyle = terminalPrefs.terminalCursorStyle,
                 )
             }
@@ -173,7 +159,6 @@ class SettingsViewModel
                     terminalFont = prefs.terminalFont,
                     terminalFontSizeSp = prefs.terminalFontSizeSp,
                     terminalCursorStyle = prefs.terminalCursorStyle,
-                    terminalHapticFeedbackEnabled = prefs.terminalHapticFeedbackEnabled,
                     terminalShortcutLayout = prefs.terminalShortcutLayout,
                     terminalHardwareKeyBindings = prefs.terminalHardwareKeyBindings,
                     clipboardTimeoutSeconds = prefs.clipboardTimeoutSeconds,
@@ -271,12 +256,6 @@ class SettingsViewModel
             }
         }
 
-        fun setTerminalHapticFeedbackEnabled(enabled: Boolean) {
-            viewModelScope.launch {
-                settingsRepository.setTerminalHapticFeedbackEnabled(enabled)
-            }
-        }
-
         fun setTerminalCursorStyle(style: Int) {
             viewModelScope.launch {
                 settingsRepository.setTerminalCursorStyle(style)
@@ -320,7 +299,6 @@ private data class SettingsPreferences(
     val terminalFont: String,
     val terminalFontSizeSp: Int,
     val terminalCursorStyle: Int,
-    val terminalHapticFeedbackEnabled: Boolean,
     val terminalShortcutLayout: String,
     val terminalHardwareKeyBindings: String,
     val clipboardTimeoutSeconds: Int,
@@ -345,7 +323,6 @@ private data class TerminalPreferences(
     val font: String,
     val fontSizeSp: Int,
     val terminalCursorStyle: Int,
-    val terminalHapticFeedbackEnabled: Boolean,
     val terminalShortcutLayout: String,
     val terminalHardwareKeyBindings: String,
     val clipboardTimeoutSeconds: Int,
@@ -360,9 +337,4 @@ private data class TerminalCorePreferences(
     val clipboardTimeoutSeconds: Int,
     val sshKeepaliveIntervalSeconds: Int,
     val sshCompressionEnabled: Boolean,
-)
-
-private data class TerminalInputFeedbackPreferences(
-    val hapticFeedbackEnabled: Boolean,
-    val cursorStyle: Int,
 )

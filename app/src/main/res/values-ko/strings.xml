@@ -293,7 +293,6 @@
     <string name="settings_terminal_hardware_key_bindings_hint">한 줄당 1개 규칙: MOD+KEY=ACTION (MOD: CTRL/ALT/SHIFT/META)</string>
     <string name="settings_terminal_hardware_key_bindings_examples">예: CTRL+H=BACKSPACE&#10;CTRL+P=ARROW_UP&#10;CTRL+N=ARROW_DOWN</string>
     <string name="settings_terminal_hardware_key_bindings_valid_count">유효한 바인딩: %1$d개</string>
-    <string name="settings_haptic_feedback">키 햅틱 피드백</string>
     <string name="settings_crash_logs_count">%d개의 보고서</string>
     <string name="settings_backup_export">연결 백업 내보내기</string>
     <string name="settings_backup_import">연결 백업 가져오기</string>

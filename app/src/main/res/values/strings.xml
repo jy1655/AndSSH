@@ -293,7 +293,6 @@
     <string name="settings_terminal_hardware_key_bindings_hint">One rule per line: MOD+KEY=ACTION (MOD: CTRL/ALT/SHIFT/META)</string>
     <string name="settings_terminal_hardware_key_bindings_examples">Example: CTRL+H=BACKSPACE&#10;CTRL+P=ARROW_UP&#10;CTRL+N=ARROW_DOWN</string>
     <string name="settings_terminal_hardware_key_bindings_valid_count">Valid bindings: %1$d</string>
-    <string name="settings_haptic_feedback">Key Haptic Feedback</string>
     <string name="settings_crash_logs_count">%d reports</string>
     <string name="settings_backup_export">Export Connections Backup</string>
     <string name="settings_backup_import">Import Connections Backup</string>

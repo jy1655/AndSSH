@@ -93,7 +93,6 @@ fun TerminalScreen(
     val terminalColorSchemeId by viewModel.terminalColorSchemeId.collectAsState()
     val terminalFontId by viewModel.terminalFont.collectAsState()
     val terminalFontSizeSp by viewModel.terminalFontSizeSp.collectAsState()
-    val terminalHapticFeedbackEnabled by viewModel.terminalHapticFeedbackEnabled.collectAsState()
     val terminalCursorStyle by viewModel.terminalCursorStyle.collectAsState()
     val terminalShortcutLayout by viewModel.terminalShortcutLayout.collectAsState()
     val terminalHardwareKeyBindings by viewModel.terminalHardwareKeyBindings.collectAsState()
@@ -167,7 +166,6 @@ fun TerminalScreen(
             terminalColorSchemeId = activeColorSchemeId,
             terminalFontId = terminalFontId,
             terminalFontSizeSp = terminalFontSizeSp,
-            terminalHapticFeedbackEnabled = terminalHapticFeedbackEnabled,
             terminalCursorStyle = terminalCursorStyle,
             terminalShortcutLayout = terminalShortcutLayout,
             terminalHardwareKeyBindings = terminalHardwareKeyBindings,
@@ -289,7 +287,6 @@ private data class TerminalScreenModel(
     val terminalColorSchemeId: String,
     val terminalFontId: String,
     val terminalFontSizeSp: Int,
-    val terminalHapticFeedbackEnabled: Boolean,
     val terminalCursorStyle: Int,
     val terminalShortcutLayout: String,
     val terminalHardwareKeyBindings: String,
@@ -603,7 +600,6 @@ private fun TerminalMainColumn(
             onSnippetClick = callbacks.onShowSnippets,
             onHistoryClick = callbacks.onShowHistory,
             onPageScroll = callbacks.onPageScroll,
-            isHapticFeedbackEnabled = model.terminalHapticFeedbackEnabled,
             shortcutLayout = model.terminalShortcutLayout,
             hardwareKeyBindings = model.terminalHardwareKeyBindings,
             showShortcutRow = !model.isFocusMode,

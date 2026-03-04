@@ -144,14 +144,6 @@ class TerminalViewModel
                     SettingsRepository.DEFAULT_SSH_COMPRESSION_ENABLED,
                 )
 
-        val terminalHapticFeedbackEnabled: StateFlow<Boolean> =
-            settingsRepository.terminalHapticFeedbackEnabled
-                .stateIn(
-                    viewModelScope,
-                    SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
-                    SettingsRepository.DEFAULT_TERMINAL_HAPTIC_FEEDBACK_ENABLED,
-                )
-
         val terminalCursorStyle: StateFlow<Int> =
             settingsRepository.terminalCursorStyle
                 .stateIn(
