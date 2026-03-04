@@ -2,7 +2,6 @@
 
 package com.opencode.sshterminal.ui.terminal
 
-import android.graphics.Typeface
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,7 +61,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.core.content.res.ResourcesCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.opencode.sshterminal.R
 import com.opencode.sshterminal.data.ConnectionProfile
@@ -74,8 +72,8 @@ import com.opencode.sshterminal.session.HostKeyAlert
 import com.opencode.sshterminal.session.SessionSnapshot
 import com.opencode.sshterminal.session.TabId
 import com.opencode.sshterminal.session.TabInfo
-import com.opencode.sshterminal.terminal.TerminalFontPreset
 import com.opencode.sshterminal.terminal.TermuxTerminalBridge
+import com.opencode.sshterminal.terminal.resolveTerminalTypeface
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -417,8 +415,7 @@ private fun TerminalMainColumn(
                     SettingsRepository.MIN_TERMINAL_FONT_SIZE_SP,
                     SettingsRepository.MAX_TERMINAL_FONT_SIZE_SP,
                 )
-            val preset = TerminalFontPreset.fromId(model.terminalFontId)
-            val typeface = ResourcesCompat.getFont(context, preset.fontResId) ?: Typeface.MONOSPACE
+            val typeface = resolveTerminalTypeface(context, model.terminalFontId)
             val renderer = com.termux.view.TerminalRenderer(fontSizeSp, typeface)
             Size(renderer.fontWidth, renderer.fontLineSpacing.toFloat())
         }
@@ -656,6 +653,7 @@ private fun TerminalPaneWithInput(
                     cursorOffsetY = bridge.cursorRow * charSize.height,
                     charHeight = charSize.height,
                     terminalSize = terminalSize,
+                    terminalFontId = model.terminalFontId,
                 )
             }
         }

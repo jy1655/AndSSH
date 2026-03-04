@@ -1,18 +1,17 @@
 package com.opencode.sshterminal.ui.terminal
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
@@ -22,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import com.opencode.sshterminal.terminal.resolveTerminalComposeFontFamily
 import kotlin.math.roundToInt
 
 @Composable
@@ -31,6 +31,7 @@ internal fun TerminalCompositionOverlay(
     cursorOffsetY: Float,
     charHeight: Float,
     terminalSize: IntSize,
+    terminalFontId: String,
 ) {
     if (composingText.isEmpty() || terminalSize.width <= 0) {
         return
@@ -70,7 +71,10 @@ internal fun TerminalCompositionOverlay(
 
     val backgroundColor = MaterialTheme.colorScheme.inverseSurface
     val contentColor = MaterialTheme.colorScheme.inverseOnSurface
-
+    val compositionFontFamily =
+        remember(terminalFontId) {
+            resolveTerminalComposeFontFamily(terminalFontId)
+        }
     Popup(
         popupPositionProvider = popupPositionProvider,
         properties =
@@ -80,26 +84,22 @@ internal fun TerminalCompositionOverlay(
             ),
     ) {
         Surface(
-            shape = RoundedCornerShape(4.dp),
+            shape = RoundedCornerShape(6.dp),
             tonalElevation = 4.dp,
             color = backgroundColor,
             contentColor = contentColor,
+            modifier = Modifier.border(1.dp, contentColor.copy(alpha = 0.4f), RoundedCornerShape(6.dp)),
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            Box(
+                modifier = Modifier.size(width = 45.dp, height = 30.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = composingText,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = compositionFontFamily,
                     fontSize = 14.sp,
-                )
-                Box(
-                    modifier =
-                        Modifier
-                            .padding(top = 2.dp)
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(contentColor.copy(alpha = 0.9f)),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

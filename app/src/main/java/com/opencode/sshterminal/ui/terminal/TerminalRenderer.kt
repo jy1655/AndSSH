@@ -1,6 +1,5 @@
 package com.opencode.sshterminal.ui.terminal
 
-import android.graphics.Typeface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -15,12 +14,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
-import androidx.core.content.res.ResourcesCompat
 import com.opencode.sshterminal.data.SettingsRepository
 import com.opencode.sshterminal.terminal.TerminalColorSchemePreset
 import com.opencode.sshterminal.terminal.TerminalFontPreset
 import com.opencode.sshterminal.terminal.TermuxTerminalBridge
 import com.opencode.sshterminal.terminal.applyColorScheme
+import com.opencode.sshterminal.terminal.resolveTerminalTypeface
 import com.termux.terminal.TerminalBuffer
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.WcWidth
@@ -78,8 +77,7 @@ fun TerminalRenderer(
     val resolvedFontSizeSp = terminalFontSizeSp.coerceIn(MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP)
     val termuxRenderer =
         remember(context, terminalFontId, resolvedFontSizeSp) {
-            val preset = TerminalFontPreset.fromId(terminalFontId)
-            val typeface = ResourcesCompat.getFont(context, preset.fontResId) ?: Typeface.MONOSPACE
+            val typeface = resolveTerminalTypeface(context, terminalFontId)
             com.termux.view.TerminalRenderer(resolvedFontSizeSp, typeface)
         }
     val charSize = remember(termuxRenderer) { Size(termuxRenderer.fontWidth, termuxRenderer.fontLineSpacing.toFloat()) }
