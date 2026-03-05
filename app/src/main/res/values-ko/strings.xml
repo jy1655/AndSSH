@@ -265,6 +265,9 @@
     <string name="settings_cursor_style_block">블록</string>
     <string name="settings_cursor_style_underline">밑줄</string>
     <string name="settings_cursor_style_bar">막대</string>
+    <string name="settings_terminal_text_input_default">텍스트 입력창 기본값</string>
+    <string name="settings_terminal_text_input_enabled">활성화</string>
+    <string name="settings_terminal_text_input_disabled">비활성화</string>
     <string name="settings_clipboard_clear">클립보드 자동 삭제</string>
     <string name="settings_ssh_keepalive">SSH Keepalive</string>
     <string name="settings_ssh_compression">SSH 압축 (zlib)</string>

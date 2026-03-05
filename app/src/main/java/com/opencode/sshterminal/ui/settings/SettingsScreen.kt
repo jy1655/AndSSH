@@ -564,6 +564,7 @@ private fun TerminalSection(
     var showFontDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showCursorDialog by remember { mutableStateOf(false) }
+    var showInputModeDialog by remember { mutableStateOf(false) }
     var showClipboardDialog by remember { mutableStateOf(false) }
     var showKeepaliveDialog by remember { mutableStateOf(false) }
     var showShortcutLayoutDialog by remember { mutableStateOf(false) }
@@ -584,6 +585,16 @@ private fun TerminalSection(
     val cursorStyleLabel =
         cursorStyleOptions.firstOrNull { it.first == state.terminalCursorStyle }?.second
             ?: cursorStyleOptions.first().second
+    val inputModeOptions =
+        listOf(
+            SettingsRepository.TERMINAL_INPUT_MODE_TEXT_BAR to
+                stringResource(R.string.settings_terminal_text_input_enabled),
+            SettingsRepository.TERMINAL_INPUT_MODE_DIRECT to
+                stringResource(R.string.settings_terminal_text_input_disabled),
+        )
+    val inputModeLabel =
+        inputModeOptions.firstOrNull { it.first == state.terminalInputMode }?.second
+            ?: inputModeOptions.last().second
     val clipboardOptions =
         listOf(
             15 to stringResource(R.string.settings_timeout_15s),
@@ -642,6 +653,12 @@ private fun TerminalSection(
                 title = stringResource(R.string.settings_cursor_style),
                 value = cursorStyleLabel,
                 onClick = { showCursorDialog = true },
+            )
+            SettingsDivider()
+            SettingsValueRow(
+                title = stringResource(R.string.settings_terminal_text_input_default),
+                value = inputModeLabel,
+                onClick = { showInputModeDialog = true },
             )
             SettingsDivider()
             SettingsValueRow(
@@ -708,6 +725,14 @@ private fun TerminalSection(
         selected = state.terminalCursorStyle,
         onSelected = viewModel::setTerminalCursorStyle,
         onDismiss = { showCursorDialog = false },
+    )
+    SelectionDialog(
+        show = showInputModeDialog,
+        title = stringResource(R.string.settings_terminal_text_input_default),
+        options = inputModeOptions,
+        selected = state.terminalInputMode,
+        onSelected = viewModel::setTerminalInputMode,
+        onDismiss = { showInputModeDialog = false },
     )
     SelectionDialog(
         show = showClipboardDialog,

@@ -84,7 +84,9 @@ class SettingsRepository
 
         val terminalInputMode: Flow<String> =
             dataStore.data.map { prefs ->
-                prefs[TERMINAL_INPUT_MODE_KEY] ?: DEFAULT_TERMINAL_INPUT_MODE
+                normalizeTerminalInputMode(
+                    prefs[TERMINAL_INPUT_MODE_KEY] ?: DEFAULT_TERMINAL_INPUT_MODE,
+                )
             }
 
         suspend fun setLanguageTag(tag: String) {
@@ -152,7 +154,16 @@ class SettingsRepository
         }
 
         suspend fun setTerminalInputMode(mode: String) {
-            dataStore.edit { prefs -> prefs[TERMINAL_INPUT_MODE_KEY] = mode }
+            dataStore.edit { prefs -> prefs[TERMINAL_INPUT_MODE_KEY] = normalizeTerminalInputMode(mode) }
+        }
+
+        private fun normalizeTerminalInputMode(mode: String): String {
+            return when (mode) {
+                TERMINAL_INPUT_MODE_DIRECT,
+                TERMINAL_INPUT_MODE_TEXT_BAR,
+                -> mode
+                else -> DEFAULT_TERMINAL_INPUT_MODE
+            }
         }
 
         companion object {
@@ -184,6 +195,8 @@ class SettingsRepository
             const val DEFAULT_SSH_COMPRESSION_ENABLED = false
             const val DEFAULT_SCREENSHOT_PROTECTION_ENABLED = false
             const val DEFAULT_TERMINAL_CURSOR_STYLE = 0
-            const val DEFAULT_TERMINAL_INPUT_MODE = "direct"
+            const val TERMINAL_INPUT_MODE_DIRECT = "direct"
+            const val TERMINAL_INPUT_MODE_TEXT_BAR = "text_bar"
+            const val DEFAULT_TERMINAL_INPUT_MODE = TERMINAL_INPUT_MODE_DIRECT
         }
     }

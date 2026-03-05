@@ -33,6 +33,7 @@ data class SettingsUiState(
     val terminalFont: String = "meslo_nerd",
     val terminalFontSizeSp: Int = SettingsRepository.DEFAULT_TERMINAL_FONT_SIZE_SP,
     val terminalCursorStyle: Int = SettingsRepository.DEFAULT_TERMINAL_CURSOR_STYLE,
+    val terminalInputMode: String = SettingsRepository.DEFAULT_TERMINAL_INPUT_MODE,
     val terminalShortcutLayout: String = DEFAULT_TERMINAL_SHORTCUT_LAYOUT,
     val terminalHardwareKeyBindings: String = DEFAULT_TERMINAL_HARDWARE_KEY_BINDINGS,
     val clipboardTimeoutSeconds: Int = 30,
@@ -98,9 +99,10 @@ class SettingsViewModel
             combine(
                 terminalCorePreferencesFlow,
                 settingsRepository.terminalCursorStyle,
+                settingsRepository.terminalInputMode,
                 settingsRepository.terminalShortcutLayout,
                 settingsRepository.terminalHardwareKeyBindings,
-            ) { corePrefs, cursorStyle, shortcutLayout, hardwareKeyBindings ->
+            ) { corePrefs, cursorStyle, inputMode, shortcutLayout, hardwareKeyBindings ->
                 TerminalPreferences(
                     colorScheme = corePrefs.colorScheme,
                     font = corePrefs.font,
@@ -108,6 +110,7 @@ class SettingsViewModel
                     clipboardTimeoutSeconds = corePrefs.clipboardTimeoutSeconds,
                     sshKeepaliveIntervalSeconds = corePrefs.sshKeepaliveIntervalSeconds,
                     sshCompressionEnabled = corePrefs.sshCompressionEnabled,
+                    terminalInputMode = inputMode,
                     terminalShortcutLayout = shortcutLayout,
                     terminalHardwareKeyBindings = hardwareKeyBindings,
                     terminalCursorStyle = cursorStyle,
@@ -127,6 +130,7 @@ class SettingsViewModel
                     clipboardTimeoutSeconds = terminalPrefs.clipboardTimeoutSeconds,
                     sshKeepaliveIntervalSeconds = terminalPrefs.sshKeepaliveIntervalSeconds,
                     sshCompressionEnabled = terminalPrefs.sshCompressionEnabled,
+                    terminalInputMode = terminalPrefs.terminalInputMode,
                     terminalShortcutLayout = terminalPrefs.terminalShortcutLayout,
                     terminalHardwareKeyBindings = terminalPrefs.terminalHardwareKeyBindings,
                     terminalCursorStyle = terminalPrefs.terminalCursorStyle,
@@ -159,6 +163,7 @@ class SettingsViewModel
                     terminalFont = prefs.terminalFont,
                     terminalFontSizeSp = prefs.terminalFontSizeSp,
                     terminalCursorStyle = prefs.terminalCursorStyle,
+                    terminalInputMode = prefs.terminalInputMode,
                     terminalShortcutLayout = prefs.terminalShortcutLayout,
                     terminalHardwareKeyBindings = prefs.terminalHardwareKeyBindings,
                     clipboardTimeoutSeconds = prefs.clipboardTimeoutSeconds,
@@ -262,6 +267,12 @@ class SettingsViewModel
             }
         }
 
+        fun setTerminalInputMode(mode: String) {
+            viewModelScope.launch {
+                settingsRepository.setTerminalInputMode(mode)
+            }
+        }
+
         fun setTerminalShortcutLayout(layout: String) {
             viewModelScope.launch {
                 settingsRepository.setTerminalShortcutLayout(layout)
@@ -299,6 +310,7 @@ private data class SettingsPreferences(
     val terminalFont: String,
     val terminalFontSizeSp: Int,
     val terminalCursorStyle: Int,
+    val terminalInputMode: String,
     val terminalShortcutLayout: String,
     val terminalHardwareKeyBindings: String,
     val clipboardTimeoutSeconds: Int,
@@ -323,6 +335,7 @@ private data class TerminalPreferences(
     val font: String,
     val fontSizeSp: Int,
     val terminalCursorStyle: Int,
+    val terminalInputMode: String,
     val terminalShortcutLayout: String,
     val terminalHardwareKeyBindings: String,
     val clipboardTimeoutSeconds: Int,
