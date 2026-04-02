@@ -34,6 +34,9 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install NDK
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;28.0.13004108" > /dev/null 2>&1
+
       - name: Derive release metadata
         run: |
           set -euo pipefail

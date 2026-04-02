@@ -113,6 +113,8 @@ android {
     namespace = "com.opencode.sshterminal"
     compileSdk = 35
 
+    ndkVersion = "28.0.13004108"
+
     defaultConfig {
         applicationId = "com.opencode.sshterminal"
         minSdk = 26
@@ -121,6 +123,19 @@ android {
         versionName = ciVersionName ?: gitVersionName ?: "0.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        externalNativeBuild {
+            cmake {
+                cFlags("-fPIC")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/jni/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     signingConfigs {
@@ -173,6 +188,10 @@ android {
     packaging {
         resources {
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
+        jniLibs {
+            // Prefer our locally-built 16KB-aligned libtermux.so over the AAR's pre-built one.
+            pickFirsts += "**/libtermux.so"
         }
     }
 }
@@ -268,8 +287,8 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.80")
 
     // Termux terminal emulator
-    implementation("com.github.termux.termux-app:terminal-emulator:v0.118.1")
-    implementation("com.github.termux.termux-app:terminal-view:v0.118.1")
+    implementation("com.github.termux.termux-app:terminal-emulator:v0.118.3")
+    implementation("com.github.termux.termux-app:terminal-view:v0.118.3")
 
     // Test
     testImplementation("junit:junit:4.13.2")

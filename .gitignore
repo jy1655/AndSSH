@@ -10,7 +10,7 @@ build/
 local.properties
 captures/
 .externalNativeBuild/
-.cxx/
+**/.cxx/
 *.dex
 *.ap_
 output-metadata.json
@@ -45,6 +45,7 @@ obj/
 # Misc
 Thumbs.db
 *.tmp
+.tmp/
 *.bak
 *.swp
 *~
