@@ -190,7 +190,10 @@ android {
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
         jniLibs {
-            // Prefer our locally-built 16KB-aligned libtermux.so over the AAR's pre-built one.
+            // Our CMake externalNativeBuild produces a 16KB-aligned libtermux.so
+            // that conflicts with the pre-built one from the termux AAR dependency.
+            // pickFirsts resolves this by keeping the first copy found; AGP processes
+            // project native libs before external (AAR) libs, so our build wins.
             pickFirsts += "**/libtermux.so"
         }
     }
