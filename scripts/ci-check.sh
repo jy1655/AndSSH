@@ -31,12 +31,12 @@ for abi in arm64-v8a armeabi-v7a x86 x86_64; do
   fi
   FOUND_ANY=true
 
-  # Verify the LOAD segment alignment is >= 16KB (0x4000).
-  # Normalize hex values (prepend 0x if missing) for POSIX-compatible conversion.
+  # 16KB alignment required for Google Play's memory-mapped execution on 16KB-page devices.
+  # Single awk does hex-to-decimal conversion portably (no gawk strtonum dependency).
   MAX_ALIGN=$(readelf -l "$TMP" \
-    | awk '/^ *LOAD/{print $NF}' \
-    | while read -r hex; do printf "%d\n" "0x${hex#0x}"; done \
-    | sort -rn | head -1)
+    | awk 'BEGIN{max=0} /^ *LOAD/{s=tolower($NF); sub(/^0x/,"",s); v=0; \
+      for(i=1;i<=length(s);i++){v=v*16+index("0123456789abcdef",substr(s,i,1))-1} \
+      if(v>max)max=v} END{print max}')
 
   if [[ -z "$MAX_ALIGN" || "$MAX_ALIGN" -lt 16384 ]]; then
     echo "ERROR: libtermux.so ($abi) is NOT 16KB page-aligned (align=${MAX_ALIGN:-unknown})." >&2

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <errno.h>
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
@@ -48,15 +49,17 @@ static int create_subprocess(JNIEnv* env,
             ptsname_r(ptm, devname, sizeof(devname))
 #endif
        ) {
+        close(ptm);
         return throw_runtime_exception(env, "Cannot grantpt()/unlockpt()/ptsname_r() on /dev/ptmx");
     }
 
     // Enable UTF-8 mode and disable flow control to prevent Ctrl+S from locking up the display.
     struct termios tios;
-    tcgetattr(ptm, &tios);
-    tios.c_iflag |= IUTF8;
-    tios.c_iflag &= ~(IXON | IXOFF);
-    tcsetattr(ptm, TCSANOW, &tios);
+    if (tcgetattr(ptm, &tios) == 0) {
+        tios.c_iflag |= IUTF8;
+        tios.c_iflag &= ~(IXON | IXOFF);
+        tcsetattr(ptm, TCSANOW, &tios);
+    }
 
     /** Set initial winsize. */
     struct winsize sz = { .ws_row = (unsigned short) rows, .ws_col = (unsigned short) columns, .ws_xpixel = (unsigned short) (columns * cell_width), .ws_ypixel = (unsigned short) (rows * cell_height)};
@@ -64,6 +67,7 @@ static int create_subprocess(JNIEnv* env,
 
     pid_t pid = fork();
     if (pid < 0) {
+        close(ptm);
         return throw_runtime_exception(env, "Fork failed");
     } else if (pid > 0) {
         *pProcessId = (int) pid;
@@ -139,6 +143,8 @@ JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_createSubprocess(
             if (!arg_utf8) { argv[i] = NULL; fail_msg = "GetStringUTFChars() failed for argv"; goto cleanup; }
             argv[i] = strdup(arg_utf8);
             (*env)->ReleaseStringUTFChars(env, arg_java_string, arg_utf8);
+            (*env)->DeleteLocalRef(env, arg_java_string);
+            if (!argv[i]) { argv[i] = NULL; fail_msg = "strdup() failed for argv"; goto cleanup; }
         }
         argv[size] = NULL;
     }
@@ -154,6 +160,8 @@ JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_createSubprocess(
             if (!env_utf8) { envp[i] = NULL; fail_msg = "GetStringUTFChars() failed for env"; goto cleanup; }
             envp[i] = strdup(env_utf8);
             (*env)->ReleaseStringUTFChars(env, env_java_string, env_utf8);
+            (*env)->DeleteLocalRef(env, env_java_string);
+            if (!envp[i]) { envp[i] = NULL; fail_msg = "strdup() failed for env"; goto cleanup; }
         }
         envp[size] = NULL;
     }
@@ -164,7 +172,6 @@ JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_createSubprocess(
     char const* cmd_utf8 = (*env)->GetStringUTFChars(env, cmd, NULL);
     if (!cmd_utf8) {
         (*env)->ReleaseStringUTFChars(env, cwd, cmd_cwd);
-        cmd_cwd = NULL;
         fail_msg = "GetStringUTFChars() failed for cmd";
         goto cleanup;
     }
@@ -183,6 +190,7 @@ cleanup:
     }
     if (fail_msg) return throw_runtime_exception(env, fail_msg);
 
+    if ((*env)->GetArrayLength(env, processIdArray) < 1) return throw_runtime_exception(env, "processIdArray must have length >= 1");
     int* pProcId = (int*) (*env)->GetPrimitiveArrayCritical(env, processIdArray, NULL);
     if (!pProcId) return throw_runtime_exception(env, "JNI call GetPrimitiveArrayCritical(processIdArray, &isCopy) failed");
 
@@ -211,7 +219,9 @@ JNIEXPORT void JNICALL Java_com_termux_terminal_JNI_setPtyUTF8Mode(JNIEnv* TERMU
 JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_waitFor(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint pid)
 {
     int status;
-    waitpid(pid, &status, 0);
+    while (waitpid(pid, &status, 0) == -1) {
+        if (errno != EINTR) return -1;
+    }
     if (WIFEXITED(status)) {
         return WEXITSTATUS(status);
     } else if (WIFSIGNALED(status)) {
