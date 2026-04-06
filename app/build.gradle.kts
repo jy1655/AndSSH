@@ -192,8 +192,9 @@ android {
         jniLibs {
             // Our CMake externalNativeBuild produces a 16KB-aligned libtermux.so
             // that conflicts with the pre-built one from the termux AAR dependency.
-            // pickFirsts resolves this by keeping the first copy found; AGP processes
-            // project native libs before external (AAR) libs, so our build wins.
+            // pickFirsts resolves this by keeping the first copy found; in observed
+            // AGP behavior, project native libs are processed before external (AAR)
+            // libs so our build wins. CI verifies the result via readelf.
             pickFirsts += "**/libtermux.so"
         }
     }
