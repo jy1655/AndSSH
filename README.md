@@ -89,7 +89,7 @@ AndSSH is built for developers and sysadmins who want a **capable, secure, and p
 
 ## Known Limitations
 
-- **Security key enrollment** is disabled in this release. The U2F-based enrollment flow was rejected by the device/Play Services combination across all tested `appId` candidates. Existing enrolled security key connections continue to work. A FIDO2-based replacement is tracked as a future milestone.
+- **Hardware security key SSH authentication** is not currently available on `main`. Current builds expose password and file-based private-key authentication only. A FIDO2-first reintroduction is being tracked in [`docs/issues/fido2-transition-design.md`](docs/issues/fido2-transition-design.md).
 - SSH key agent forwarding is limited to the active session lifetime.
 
 ## Getting Started
@@ -135,6 +135,21 @@ A convenience script is also available:
 ```bash
 ./scripts/device-smoke.sh          # test + install + launch
 ./scripts/device-smoke.sh --skip-tests  # install + launch only
+./scripts/device-smoke.sh --device-test  # side-by-side install, keeps the main app intact
+./scripts/device-smoke.sh --device-test --skip-tests
+```
+
+### Connected Tests Without Replacing the Installed App
+
+If your device already has a different-signed `com.opencode.sshterminal` installed, use the
+side-by-side `deviceTest` variant instead of `debug`. It installs as
+`com.opencode.sshterminal.devtest`, so it can coexist with the main app on the same device.
+
+```bash
+./scripts/device-connected-test.sh
+
+# Run only a specific instrumentation test class
+./scripts/device-connected-test.sh --class com.opencode.sshterminal.data.ConnectionCompatibilityDeviceTest
 ```
 
 ## Release Build (Google Play)
@@ -203,7 +218,7 @@ When you push to `main`, the GitHub Actions `Play Release` workflow builds an AA
 app/src/main/java/com/opencode/sshterminal/
 ├── app/          # Application, MainActivity, Hilt setup
 ├── data/         # Persistence models and repositories
-├── security/     # Encryption, key management, biometric, U2F
+├── security/     # Encryption, key management, biometric, sensitive-data handling
 ├── service/      # Foreground service, bell notifier
 ├── session/      # Session and tab state machine
 ├── sftp/         # SFTP protocol adapter (sshj)

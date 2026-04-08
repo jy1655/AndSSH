@@ -1,4 +1,8 @@
-# U2F 장애 리포트 템플릿
+# Historical U2F 장애 리포트 템플릿
+
+> Historical reference only. Current `main` does not ship U2F or hardware-security-key
+> SSH authentication. Use this template only for archived incidents or for future
+> branches that explicitly reintroduce equivalent logging and flows.
 
 ## 1) 기본 정보
 
