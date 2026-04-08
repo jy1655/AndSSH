@@ -66,6 +66,7 @@ class ConnectionListViewModel
                         certificatePath = identity.certificatePath,
                         privateKeyPassphrase = identity.privateKeyPassphrase,
                         requiresPrivateKeyRelink = resolvePrivateKeyRelink(profile, identity),
+                        hasUnsupportedSecurityKeyAuth = resolveUnsupportedSecurityKeyAuth(profile, identity),
                     ),
                 )
             }
@@ -117,11 +118,18 @@ class ConnectionListViewModel
         private fun resolvePrivateKeyRelink(
             profile: ConnectionProfile,
             identity: ConnectionIdentity,
-        ): Boolean {
-            if (!identity.privateKeyPath.isNullOrBlank()) return false
-            if (!identity.password.isNullOrBlank()) return false
-            return profile.requiresPrivateKeyRelink || identity.requiresPrivateKeyRelink
-        }
+        ): Boolean =
+            identity.privateKeyPath.isNullOrBlank() &&
+                identity.password.isNullOrBlank() &&
+                (profile.requiresPrivateKeyRelink || identity.requiresPrivateKeyRelink)
+
+        private fun resolveUnsupportedSecurityKeyAuth(
+            profile: ConnectionProfile,
+            identity: ConnectionIdentity,
+        ): Boolean =
+            identity.privateKeyPath.isNullOrBlank() &&
+                identity.password.isNullOrBlank() &&
+                profile.hasUnsupportedSecurityKeyAuth
 
         companion object {
             private const val STATE_FLOW_TIMEOUT_MS = 5_000L

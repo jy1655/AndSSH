@@ -19,6 +19,7 @@ data class ConnectionBackupImportSummary(
     val profileCount: Int,
     val identityCount: Int,
     val privateKeyRelinkRequiredProfileCount: Int = 0,
+    val unsupportedSecurityKeyProfileCount: Int = 0,
 )
 
 @Singleton
@@ -83,6 +84,7 @@ class ConnectionBackupManager
                 profileCount = sanitizedImport.profiles.size,
                 identityCount = sanitizedImport.identities.size,
                 privateKeyRelinkRequiredProfileCount = sanitizedImport.privateKeyRelinkRequiredProfileCount,
+                unsupportedSecurityKeyProfileCount = sanitizedImport.unsupportedSecurityKeyProfileCount,
             )
         }
 
@@ -109,16 +111,19 @@ class ConnectionBackupManager
         private fun decryptAndParsePayload(
             ciphertext: String,
             password: CharArray,
-        ): ConnectionBackupPayload {
+        ): ParsedConnectionBackupPayload {
             return runCatching {
                 val payloadJson = passwordBasedEncryptionManager.decrypt(ciphertext, password)
-                json.decodeFromString<ConnectionBackupPayload>(payloadJson)
+                ConnectionProfileCompatibility.parseBackupPayload(
+                    json = json,
+                    rawPayloadJson = payloadJson,
+                )
             }.getOrElse {
                 throw BackupDecryptionException()
             }
         }
 
-        private fun sanitizeImportedPayload(payload: ConnectionBackupPayload): SanitizedImportPayload {
+        private fun sanitizeImportedPayload(payload: ParsedConnectionBackupPayload): SanitizedImportPayload {
             val identitiesById =
                 payload.identities.associateBy(ConnectionIdentity::id) { identity ->
                     sanitizeImportedIdentity(identity)
@@ -139,6 +144,7 @@ class ConnectionBackupManager
                 profiles = profiles,
                 identities = identities,
                 privateKeyRelinkRequiredProfileCount = profiles.count { profile -> profile.requiresPrivateKeyRelink },
+                unsupportedSecurityKeyProfileCount = payload.unsupportedSecurityKeyProfileCount,
             )
         }
 
@@ -221,4 +227,5 @@ private data class SanitizedImportPayload(
     val profiles: List<ConnectionProfile>,
     val identities: List<ConnectionIdentity>,
     val privateKeyRelinkRequiredProfileCount: Int,
+    val unsupportedSecurityKeyProfileCount: Int,
 )

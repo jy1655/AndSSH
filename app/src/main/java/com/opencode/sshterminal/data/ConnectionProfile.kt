@@ -29,4 +29,5 @@ data class ConnectionProfile(
     val terminalColorSchemeId: String? = null,
     val startupCommand: String? = null,
     val lastUsedEpochMillis: Long = 0L,
+    val hasUnsupportedSecurityKeyAuth: Boolean = false,
 )

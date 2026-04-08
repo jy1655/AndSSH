@@ -236,35 +236,42 @@ class TerminalViewModel
             val profile = connectionRepository.get(connectionId) ?: return null
             val identity = profile.identityId?.let { identityId -> connectionRepository.getIdentity(identityId) }
             val proxyJumpResolution = resolveProxyJumpCredentials(profile)
-            if (profile.requiresPrivateKeyRelink || identity?.requiresPrivateKeyRelink == true) return null
-            if (proxyJumpResolution.requiresPrivateKeyRelink) return null
-            if (touchLastUsed) {
-                connectionRepository.touchLastUsed(profile.id)
-            }
-            val tabId =
-                sessionManager.openTab(
-                    title = profile.name,
-                    connectionId = profile.id,
-                    request =
-                        profile.toConnectRequest(
-                            context = context,
-                            cols = DEFAULT_TERMINAL_COLS,
-                            rows = DEFAULT_TERMINAL_ROWS,
-                            keepaliveIntervalSeconds = sshKeepaliveIntervalSeconds.value,
-                            identity = identity,
-                            proxyJumpCredentials = proxyJumpResolution.credentials,
-                        ).copy(compressionEnabled = sshCompressionEnabled.value),
-                )
-            val startupCommand =
-                if (profile.protocol == ConnectionProtocol.MOSH) {
-                    buildMoshPreflightStartupCommand(profile.startupCommand)
-                } else {
-                    profile.startupCommand
+            val isConnectionBlocked =
+                profile.hasUnsupportedSecurityKeyAuth ||
+                    profile.requiresPrivateKeyRelink ||
+                    identity?.requiresPrivateKeyRelink == true ||
+                    proxyJumpResolution.requiresPrivateKeyRelink
+            return if (isConnectionBlocked) {
+                null
+            } else {
+                if (touchLastUsed) {
+                    connectionRepository.touchLastUsed(profile.id)
                 }
-            startupCommand?.let { command ->
-                scheduleStartupCommand(tabId = tabId, startupCommand = command)
+                val tabId =
+                    sessionManager.openTab(
+                        title = profile.name,
+                        connectionId = profile.id,
+                        request =
+                            profile.toConnectRequest(
+                                context = context,
+                                cols = DEFAULT_TERMINAL_COLS,
+                                rows = DEFAULT_TERMINAL_ROWS,
+                                keepaliveIntervalSeconds = sshKeepaliveIntervalSeconds.value,
+                                identity = identity,
+                                proxyJumpCredentials = proxyJumpResolution.credentials,
+                            ).copy(compressionEnabled = sshCompressionEnabled.value),
+                    )
+                val startupCommand =
+                    if (profile.protocol == ConnectionProtocol.MOSH) {
+                        buildMoshPreflightStartupCommand(profile.startupCommand)
+                    } else {
+                        profile.startupCommand
+                    }
+                startupCommand?.let { command ->
+                    scheduleStartupCommand(tabId = tabId, startupCommand = command)
+                }
+                tabId
             }
-            return tabId
         }
 
         private suspend fun resolveProxyJumpCredentials(profile: ConnectionProfile): ProxyJumpResolution {
