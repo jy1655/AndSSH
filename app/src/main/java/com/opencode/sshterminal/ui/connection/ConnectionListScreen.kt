@@ -85,6 +85,7 @@ fun ConnectionListScreen(
     var showSheet by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<ConnectionProfile?>(null) }
     var privateKeyRelinkTarget by remember { mutableStateOf<ConnectionProfile?>(null) }
+    var unsupportedSecurityKeyTarget by remember { mutableStateOf<ConnectionProfile?>(null) }
     var showQuickConnectDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedGroupFilter by remember { mutableStateOf<String?>(null) }
@@ -145,7 +146,9 @@ fun ConnectionListScreen(
             sortOption = sortOption,
             onSelectSortOption = { sortOption = it },
             onConnect = { profile ->
-                if (profile.requiresPrivateKeyRelink) {
+                if (profile.hasUnsupportedSecurityKeyAuth) {
+                    unsupportedSecurityKeyTarget = profile
+                } else if (profile.requiresPrivateKeyRelink) {
                     privateKeyRelinkTarget = profile
                 } else {
                     onConnect(profile.id)
@@ -189,6 +192,15 @@ fun ConnectionListScreen(
             showSheet = true
         },
     )
+    ConnectionUnsupportedSecurityKeyDialog(
+        target = unsupportedSecurityKeyTarget,
+        onDismiss = { unsupportedSecurityKeyTarget = null },
+        onOpenEditor = { target ->
+            unsupportedSecurityKeyTarget = null
+            editingProfile = target
+            showSheet = true
+        },
+    )
 
     if (showQuickConnectDialog) {
         QuickConnectDialog(
@@ -210,6 +222,7 @@ fun ConnectionListScreen(
     }
 }
 
+@Suppress("LongMethod", "LongParameterList")
 @Composable
 private fun ConnectionListContent(
     allProfiles: List<ConnectionProfile>,
@@ -493,6 +506,30 @@ private fun ConnectionPrivateKeyRelinkDialog(
 }
 
 @Composable
+private fun ConnectionUnsupportedSecurityKeyDialog(
+    target: ConnectionProfile?,
+    onDismiss: () -> Unit,
+    onOpenEditor: (ConnectionProfile) -> Unit,
+) {
+    if (target == null) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.connection_unsupported_security_key_title)) },
+        text = { Text(stringResource(R.string.connection_unsupported_security_key_message)) },
+        confirmButton = {
+            TextButton(onClick = { onOpenEditor(target) }) {
+                Text(stringResource(R.string.connection_unsupported_security_key_action))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}
+
+@Composable
 private fun ConnectionCard(
     profile: ConnectionProfile,
     onClick: () -> Unit,
@@ -553,6 +590,13 @@ private fun ConnectionCard(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
+                if (profile.hasUnsupportedSecurityKeyAuth) {
+                    Text(
+                        text = stringResource(R.string.connection_unsupported_security_key_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 connectionRouteSummary(profile)?.let { summary ->
                     Text(
                         summary,
@@ -600,6 +644,7 @@ private data class ConnectionDraft(
     val certificatePath: String = "",
     val privateKeyPassphrase: String = "",
     val requiresPrivateKeyRelink: Boolean = false,
+    val hasUnsupportedSecurityKeyAuth: Boolean = false,
     val proxyJumpIdentityIds: Map<String, String> = emptyMap(),
     val portForwards: List<PortForwardRule> = emptyList(),
 )
@@ -625,6 +670,7 @@ private fun ConnectionProfile?.toDraft(): ConnectionDraft =
         certificatePath = this?.certificatePath.orEmpty(),
         privateKeyPassphrase = this?.privateKeyPassphrase.orEmpty(),
         requiresPrivateKeyRelink = this?.requiresPrivateKeyRelink ?: false,
+        hasUnsupportedSecurityKeyAuth = this?.hasUnsupportedSecurityKeyAuth ?: false,
         proxyJumpIdentityIds = this?.proxyJumpIdentityIds.orEmpty(),
         portForwards = this?.portForwards.orEmpty(),
     )
@@ -653,6 +699,12 @@ private fun ConnectionDraft.toProfileOrNull(
             hasPassword -> false
             else -> requiresPrivateKeyRelink
         }
+    val unsupportedSecurityKeyAuth =
+        when {
+            hasPrivateKeyPath -> false
+            hasPassword -> false
+            else -> hasUnsupportedSecurityKeyAuth
+        }
     return ConnectionProfile(
         id = initial?.id ?: UUID.randomUUID().toString(),
         name = name.ifBlank { "$username@$host" },
@@ -678,6 +730,7 @@ private fun ConnectionDraft.toProfileOrNull(
         proxyJumpIdentityIds = filteredProxyJumpIdentityIds,
         portForwards = portForwards,
         lastUsedEpochMillis = initial?.lastUsedEpochMillis ?: System.currentTimeMillis(),
+        hasUnsupportedSecurityKeyAuth = unsupportedSecurityKeyAuth,
     )
 }
 
@@ -783,6 +836,7 @@ private fun ConnectionBottomSheet(
                                 certificatePath = identity.certificatePath.orEmpty(),
                                 privateKeyPassphrase = identity.privateKeyPassphrase.orEmpty(),
                                 requiresPrivateKeyRelink = identity.requiresPrivateKeyRelink,
+                                hasUnsupportedSecurityKeyAuth = false,
                             )
                     }
                 },
@@ -796,12 +850,13 @@ private fun ConnectionBottomSheet(
                 onPickPrivateKey = privateKeyPicker,
                 onPickCertificate = certificatePicker,
                 onClearPrivateKey = {
-                    draft = draft.copy(
-                        privateKeyPath = "",
-                        certificatePath = "",
-                        privateKeyPassphrase = "",
-                        requiresPrivateKeyRelink = false,
-                    )
+                    draft =
+                        draft.copy(
+                            privateKeyPath = "",
+                            certificatePath = "",
+                            privateKeyPassphrase = "",
+                            requiresPrivateKeyRelink = false,
+                        )
                 },
                 onClearCertificate = { draft = draft.copy(certificatePath = "") },
                 onAddPortForwardRule = { rule ->

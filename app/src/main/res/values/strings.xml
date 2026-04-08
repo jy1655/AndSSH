@@ -42,6 +42,10 @@
     <string name="connection_relink_private_key_title">Select private key again</string>
     <string name="connection_relink_private_key_message">For security and Android file access rules, private key file paths from backups cannot be reused. Select the private key again to continue.</string>
     <string name="connection_relink_private_key_action">Select private key</string>
+    <string name="connection_unsupported_security_key_badge">Legacy security key auth</string>
+    <string name="connection_unsupported_security_key_title">Security key auth needs migration</string>
+    <string name="connection_unsupported_security_key_message">This connection was imported with legacy hardware security key authentication data. The current build cannot use that auth path yet. Edit the connection to add a password or private key, or wait for a compatibility update.</string>
+    <string name="connection_unsupported_security_key_action">Edit connection</string>
     <string name="connection_edit">Edit</string>
     <string name="connection_delete">Delete</string>
     <string name="connection_sheet_edit_title">Edit Connection</string>
@@ -295,6 +299,7 @@
     <string name="settings_backup_export_failed">Backup export failed: %1$s</string>
     <string name="settings_backup_import_success">Imported %1$d connections, %2$d identities</string>
     <string name="settings_backup_import_relink_notice">%1$d connections require private key re-linking</string>
+    <string name="settings_backup_import_legacy_security_key_notice">%1$d connections were imported with unsupported legacy security key auth</string>
     <string name="settings_backup_import_failed">Backup import failed: %1$s</string>
     <string name="settings_backup_password_title">Set Backup Password</string>
     <string name="settings_backup_password_hint">This password will be required to restore the backup on any device.</string>

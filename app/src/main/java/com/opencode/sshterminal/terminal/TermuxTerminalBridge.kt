@@ -55,7 +55,15 @@ class TermuxTerminalBridge(
         )
 
     val emulator: TerminalEmulator =
-        TerminalEmulator(output, cols, rows, transcriptRows, 0, TerminalEmulator.DEFAULT_TERMINAL_CURSOR_STYLE, sessionClient)
+        TerminalEmulator(
+            output,
+            cols,
+            rows,
+            transcriptRows,
+            0,
+            TerminalEmulator.DEFAULT_TERMINAL_CURSOR_STYLE,
+            sessionClient,
+        )
 
     fun feed(bytes: ByteArray) =
         lock.write {

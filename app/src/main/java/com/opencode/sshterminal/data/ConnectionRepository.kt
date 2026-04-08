@@ -179,7 +179,10 @@ class ConnectionRepository
         private fun decodeProfile(raw: String): ConnectionProfile? {
             return runCatching {
                 val decrypted = encryptionManager.decrypt(raw)
-                json.decodeFromString<ConnectionProfile>(decrypted)
+                ConnectionProfileCompatibility.decodeProfileOrNull(
+                    json = json,
+                    rawProfileJson = decrypted,
+                )
             }.getOrNull()
         }
 

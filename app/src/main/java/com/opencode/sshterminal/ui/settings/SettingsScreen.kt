@@ -238,6 +238,16 @@ private fun rememberBackupImportAction(
                 Toast.LENGTH_LONG,
             ).show()
         }
+        if (summary.unsupportedSecurityKeyProfileCount > 0) {
+            Toast.makeText(
+                context,
+                context.getString(
+                    R.string.settings_backup_import_legacy_security_key_notice,
+                    summary.unsupportedSecurityKeyProfileCount,
+                ),
+                Toast.LENGTH_LONG,
+            ).show()
+        }
     }
     val showImportFailed: (Throwable) -> Unit = { error ->
         Toast.makeText(
