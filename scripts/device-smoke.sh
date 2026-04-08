@@ -5,9 +5,28 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 RUN_TESTS=1
-if [[ "${1:-}" == "--skip-tests" ]]; then
-  RUN_TESTS=0
-fi
+VARIANT="debug"
+APPLICATION_ID="com.opencode.sshterminal"
+MAIN_ACTIVITY="com.opencode.sshterminal.app.MainActivity"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --skip-tests)
+      RUN_TESTS=0
+      shift
+      ;;
+    --device-test)
+      VARIANT="deviceTest"
+      APPLICATION_ID="com.opencode.sshterminal.devtest"
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Usage: $0 [--skip-tests] [--device-test]"
+      exit 1
+      ;;
+  esac
+done
 
 if ! command -v adb >/dev/null 2>&1; then
   echo "adb command not found. Add Android platform-tools to PATH."
@@ -31,13 +50,12 @@ if [[ "$RUN_TESTS" -eq 1 ]]; then
   ./gradlew --no-daemon :app:testDebugUnitTest
 fi
 
-./gradlew --no-daemon :app:assembleDebug
-APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
-if [[ ! -f "$APK_PATH" ]]; then
-  echo "Debug APK not found at $APK_PATH"
-  exit 1
+if [[ "$VARIANT" == "deviceTest" ]]; then
+  ./gradlew --no-daemon :app:installDeviceTest
+else
+  ./gradlew --no-daemon :app:installDebug
 fi
-"${ADB[@]}" install -r "$APK_PATH" >/dev/null
-"${ADB[@]}" shell am start --user current -n com.opencode.sshterminal/.app.MainActivity >/dev/null
 
-echo "Device smoke run complete on $DEVICE_SERIAL: app installed and launched."
+"${ADB[@]}" shell am start --user current -n "$APPLICATION_ID/$MAIN_ACTIVITY" >/dev/null
+
+echo "Device smoke run complete on $DEVICE_SERIAL: $APPLICATION_ID installed and launched."

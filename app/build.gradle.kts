@@ -112,6 +112,7 @@ val hasReleaseSigningConfig =
 android {
     namespace = "com.opencode.sshterminal"
     compileSdk = 35
+    testBuildType = "deviceTest"
 
     ndkVersion = "28.0.13004108"
 
@@ -164,6 +165,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+        create("deviceTest") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".devtest"
+            versionNameSuffix = "-deviceTest"
+            matchingFallbacks += listOf("debug")
         }
     }
 
