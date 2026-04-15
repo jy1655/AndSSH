@@ -152,6 +152,19 @@ side-by-side `deviceTest` variant instead of `debug`. It installs as
 ./scripts/device-connected-test.sh --class com.opencode.sshterminal.data.ConnectionCompatibilityDeviceTest
 ```
 
+### Real SSH E2E on a Connected Device
+
+To verify an actual SSH session from the device into the current workstation, run:
+
+```bash
+./scripts/device-ssh-e2e.sh
+```
+
+This script starts a temporary localhost `sshd`, maps it into the device with `adb reverse`,
+launches the real-device instrumentation test, and verifies that AndSSH can connect and execute
+`cd <current-workspace> && pwd` successfully. It requires `adb`, `sshd`, `ssh`, `ssh-keygen`, and
+`python3` on the host.
+
 ## Release Build (Google Play)
 
 ### Automatic upload on push (recommended)

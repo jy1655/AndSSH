@@ -3,6 +3,7 @@ package com.opencode.sshterminal.data
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -17,14 +18,6 @@ internal data class ParsedConnectionBackupPayload(
 )
 
 internal object ConnectionProfileCompatibility {
-    private val legacySecurityKeyFieldNames =
-        setOf(
-            "securityKeyApplication",
-            "securityKeyHandleBase64",
-            "securityKeyPublicKeyBase64",
-            "securityKeyFlags",
-        )
-
     fun decodeProfileOrNull(
         json: Json,
         rawProfileJson: String,
@@ -44,7 +37,7 @@ internal object ConnectionProfileCompatibility {
         return runCatching {
             val profileObject = profileJson.jsonObject
             val decoded = json.decodeFromJsonElement<ConnectionProfile>(profileObject)
-            if (hasLegacySecurityKeyFields(profileObject)) {
+            if (hasConfiguredLegacySecurityKeyAuth(profileObject)) {
                 decoded.copy(hasUnsupportedSecurityKeyAuth = true)
             } else {
                 decoded
@@ -74,7 +67,18 @@ internal object ConnectionProfileCompatibility {
         )
     }
 
-    private fun hasLegacySecurityKeyFields(profileObject: JsonObject): Boolean {
-        return legacySecurityKeyFieldNames.any(profileObject::containsKey)
+    private fun hasConfiguredLegacySecurityKeyAuth(profileObject: JsonObject): Boolean {
+        val application = profileObject.nonBlankString("securityKeyApplication")
+        val keyHandle = profileObject.nonBlankString("securityKeyHandleBase64")
+        val publicKey = profileObject.nonBlankString("securityKeyPublicKeyBase64")
+        return application != null && keyHandle != null && publicKey != null
+    }
+
+    private fun JsonObject.nonBlankString(fieldName: String): String? {
+        return get(fieldName)
+            ?.jsonPrimitive
+            ?.contentOrNull
+            ?.trim()
+            ?.takeIf(String::isNotEmpty)
     }
 }

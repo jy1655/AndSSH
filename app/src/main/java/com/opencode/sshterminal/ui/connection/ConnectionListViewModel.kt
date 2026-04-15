@@ -6,6 +6,8 @@ import com.opencode.sshterminal.data.ConnectionIdentity
 import com.opencode.sshterminal.data.ConnectionProfile
 import com.opencode.sshterminal.data.ConnectionProtocol
 import com.opencode.sshterminal.data.ConnectionRepository
+import com.opencode.sshterminal.data.hasBlockingPrivateKeyRelink
+import com.opencode.sshterminal.data.hasBlockingUnsupportedSecurityKeyAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -118,18 +120,12 @@ class ConnectionListViewModel
         private fun resolvePrivateKeyRelink(
             profile: ConnectionProfile,
             identity: ConnectionIdentity,
-        ): Boolean =
-            identity.privateKeyPath.isNullOrBlank() &&
-                identity.password.isNullOrBlank() &&
-                (profile.requiresPrivateKeyRelink || identity.requiresPrivateKeyRelink)
+        ): Boolean = profile.hasBlockingPrivateKeyRelink(identity)
 
         private fun resolveUnsupportedSecurityKeyAuth(
             profile: ConnectionProfile,
             identity: ConnectionIdentity,
-        ): Boolean =
-            identity.privateKeyPath.isNullOrBlank() &&
-                identity.password.isNullOrBlank() &&
-                profile.hasUnsupportedSecurityKeyAuth
+        ): Boolean = profile.hasBlockingUnsupportedSecurityKeyAuth(identity)
 
         companion object {
             private const val STATE_FLOW_TIMEOUT_MS = 5_000L
