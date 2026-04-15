@@ -120,8 +120,8 @@ android {
         applicationId = "com.opencode.sshterminal"
         minSdk = 26
         targetSdk = 35
-        versionCode = ciVersionCode ?: gitVersionCode ?: 208
-        versionName = ciVersionName ?: gitVersionName ?: "0.2.8"
+        versionCode = ciVersionCode ?: gitVersionCode ?: 209
+        versionName = ciVersionName ?: gitVersionName ?: "0.2.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
