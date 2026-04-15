@@ -16,6 +16,8 @@ import com.opencode.sshterminal.data.TerminalCommandHistoryRepository
 import com.opencode.sshterminal.data.TerminalSnippet
 import com.opencode.sshterminal.data.TerminalSnippetRepository
 import com.opencode.sshterminal.data.WorkspaceRepository
+import com.opencode.sshterminal.data.hasBlockingPrivateKeyRelink
+import com.opencode.sshterminal.data.hasBlockingUnsupportedSecurityKeyAuth
 import com.opencode.sshterminal.security.SensitiveClipboardManager
 import com.opencode.sshterminal.service.SshForegroundService
 import com.opencode.sshterminal.session.JumpCredential
@@ -237,9 +239,8 @@ class TerminalViewModel
             val identity = profile.identityId?.let { identityId -> connectionRepository.getIdentity(identityId) }
             val proxyJumpResolution = resolveProxyJumpCredentials(profile)
             val isConnectionBlocked =
-                profile.hasUnsupportedSecurityKeyAuth ||
-                    profile.requiresPrivateKeyRelink ||
-                    identity?.requiresPrivateKeyRelink == true ||
+                profile.hasBlockingUnsupportedSecurityKeyAuth(identity) ||
+                    profile.hasBlockingPrivateKeyRelink(identity) ||
                     proxyJumpResolution.requiresPrivateKeyRelink
             return if (isConnectionBlocked) {
                 null

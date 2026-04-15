@@ -65,6 +65,35 @@ class ConnectionProfileCompatibilityTest {
     }
 
     @Test
+    fun `ignores null legacy security key placeholders`() {
+        val placeholderJson =
+            """
+            {
+              "id": "placeholder-1",
+              "name": "placeholder",
+              "host": "example.com",
+              "port": 22,
+              "username": "dev",
+              "password": "secret",
+              "securityKeyApplication": null,
+              "securityKeyHandleBase64": null,
+              "securityKeyPublicKeyBase64": null,
+              "securityKeyFlags": 1
+            }
+            """.trimIndent()
+
+        val decoded =
+            requireNotNull(
+                ConnectionProfileCompatibility.decodeProfileOrNull(
+                    json = json,
+                    rawProfileJson = placeholderJson,
+                ),
+            )
+
+        assertFalse(decoded.hasUnsupportedSecurityKeyAuth)
+    }
+
+    @Test
     fun `counts unsupported legacy security key profiles in backup payload`() {
         val backupPayloadJson =
             """

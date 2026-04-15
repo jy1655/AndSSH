@@ -67,6 +67,8 @@ import com.opencode.sshterminal.data.ConnectionProtocol
 import com.opencode.sshterminal.data.PortForwardRule
 import com.opencode.sshterminal.data.PortForwardType
 import com.opencode.sshterminal.data.ProxyJumpEntry
+import com.opencode.sshterminal.data.hasBlockingPrivateKeyRelink
+import com.opencode.sshterminal.data.hasBlockingUnsupportedSecurityKeyAuth
 import com.opencode.sshterminal.data.parseProxyJumpEntries
 import com.opencode.sshterminal.data.proxyJumpHostPortKey
 import com.opencode.sshterminal.terminal.TerminalColorSchemePreset
@@ -138,6 +140,7 @@ fun ConnectionListScreen(
         ConnectionListContent(
             allProfiles = profiles,
             profiles = filteredProfiles,
+            identities = identities,
             searchQuery = searchQuery,
             onSearchQueryChange = { searchQuery = it },
             availableGroupFilters = availableGroupFilters,
@@ -227,6 +230,7 @@ fun ConnectionListScreen(
 private fun ConnectionListContent(
     allProfiles: List<ConnectionProfile>,
     profiles: List<ConnectionProfile>,
+    identities: List<ConnectionIdentity>,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     availableGroupFilters: List<String>,
@@ -239,6 +243,7 @@ private fun ConnectionListContent(
     onDelete: (ConnectionProfile) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val identitiesById = remember(identities) { identities.associateBy(ConnectionIdentity::id) }
     Column(
         modifier =
             modifier
@@ -298,6 +303,9 @@ private fun ConnectionListContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     itemsIndexed(profiles, key = { _, profile -> profile.id }) { index, profile ->
+                        val identity = profile.identityId?.let(identitiesById::get)
+                        val requiresPrivateKeyRelink = profile.hasBlockingPrivateKeyRelink(identity)
+                        val hasUnsupportedSecurityKeyAuth = profile.hasBlockingUnsupportedSecurityKeyAuth(identity)
                         val currentGroup = profile.group?.takeIf { it.isNotBlank() } ?: ungroupedLabel
                         val previousGroup =
                             profiles
@@ -313,7 +321,16 @@ private fun ConnectionListContent(
                         }
                         ConnectionCard(
                             profile = profile,
-                            onClick = { onConnect(profile) },
+                            requiresPrivateKeyRelink = requiresPrivateKeyRelink,
+                            hasUnsupportedSecurityKeyAuth = hasUnsupportedSecurityKeyAuth,
+                            onClick = {
+                                onConnect(
+                                    profile.copy(
+                                        requiresPrivateKeyRelink = requiresPrivateKeyRelink,
+                                        hasUnsupportedSecurityKeyAuth = hasUnsupportedSecurityKeyAuth,
+                                    ),
+                                )
+                            },
                             onEdit = { onEdit(profile) },
                             onDelete = { onDelete(profile) },
                         )
@@ -532,6 +549,8 @@ private fun ConnectionUnsupportedSecurityKeyDialog(
 @Composable
 private fun ConnectionCard(
     profile: ConnectionProfile,
+    requiresPrivateKeyRelink: Boolean,
+    hasUnsupportedSecurityKeyAuth: Boolean,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -583,14 +602,14 @@ private fun ConnectionCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (profile.requiresPrivateKeyRelink) {
+                if (requiresPrivateKeyRelink) {
                     Text(
                         text = stringResource(R.string.connection_relink_private_key_badge),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-                if (profile.hasUnsupportedSecurityKeyAuth) {
+                if (hasUnsupportedSecurityKeyAuth) {
                     Text(
                         text = stringResource(R.string.connection_unsupported_security_key_badge),
                         style = MaterialTheme.typography.labelSmall,

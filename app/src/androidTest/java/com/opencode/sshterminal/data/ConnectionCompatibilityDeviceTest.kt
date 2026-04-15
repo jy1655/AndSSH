@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -89,6 +90,43 @@ class ConnectionCompatibilityDeviceTest {
 
             assertNotNull(profile)
             assertTrue(requireNotNull(profile).hasUnsupportedSecurityKeyAuth)
+        }
+
+    @Test
+    fun repository_get_ignoresNullLegacySecurityKeyPlaceholders_onDevice() =
+        runBlocking {
+            val dataStore = createDataStore("repo-null-placeholders")
+            val encryptionManager = EncryptionManager()
+            val repository =
+                ConnectionRepository(
+                    dataStore = dataStore,
+                    encryptionManager = encryptionManager,
+                )
+            val id = "legacy-null-placeholder-profile"
+            val rawLegacyProfileJson =
+                """
+                {
+                  "id": "$id",
+                  "name": "legacy null placeholder profile",
+                  "host": "device.example.com",
+                  "port": 22,
+                  "username": "android",
+                  "password": "secret",
+                  "securityKeyApplication": null,
+                  "securityKeyHandleBase64": null,
+                  "securityKeyPublicKeyBase64": null,
+                  "securityKeyFlags": 1
+                }
+                """.trimIndent()
+
+            dataStore.edit { prefs ->
+                prefs[stringPreferencesKey("conn_$id")] = encryptionManager.encrypt(rawLegacyProfileJson)
+            }
+
+            val profile = repository.get(id)
+
+            assertNotNull(profile)
+            assertFalse(requireNotNull(profile).hasUnsupportedSecurityKeyAuth)
         }
 
     private fun createRepository(label: String): ConnectionRepository {
